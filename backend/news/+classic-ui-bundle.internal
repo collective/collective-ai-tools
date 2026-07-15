@@ -1,5 +1,0 @@
-Refactor the Classic UI JavaScript into ES6 Patternslib modules under
-``backend/resources/``, built with webpack (``@patternslib/dev``) into a single
-``aitools`` bundle registered through the Plone resource registry — replacing
-the hand-minified ``browser/static`` assets and the ``rjsmin``/``rcssmin`` step.
-Build with ``make build-resources``. @frapell
