@@ -21,7 +21,7 @@ It is checked out by `make install` and is read-only here.
 ## How the add-on is wired
 
 This is a pnpm-workspace monorepo. The workspace root
-[`package.json`](package.json) (`volto-collective-aitools-dev`) is not
+[`package.json`](package.json) (`volto-collective-aitools`) is not
 published; it orchestrates Volto plus the add-on via pnpm filters.
 
 - [`volto.config.js`](volto.config.js) lists `volto-collective-aitools`

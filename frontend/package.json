@@ -1,5 +1,5 @@
 {
-  "name": "volto-collective-aitools-dev",
+  "name": "volto-collective-aitools",
   "version": "1.0.0",
   "description": "This package provides tools powered by AI, both for editors as for anonymous visitors",
   "author": "Franco Pellegrini",
