@@ -6,6 +6,12 @@
 
 This package provides tools powered by AI, both for editors as for anonymous visitors
 
+> **Status:** the AI features are currently **Classic UI only** (the
+> `collective.aitools` backend). The **Volto (React) frontend implementation is
+> not available yet** — the `volto-collective-aitools` package is a scaffold. A
+> work-in-progress Volto implementation lives on the `volto-wip` branch and will
+> land in a later release.
+
 ## Quick Start 🏁
 
 ### Prerequisites ✅

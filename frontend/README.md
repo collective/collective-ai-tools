@@ -9,7 +9,11 @@ This package provides tools powered by AI, both for editors as for anonymous vis
 
 ## Features
 
-<!-- List your awesome features here -->
+> **Not implemented yet.** The AI tools currently ship for **Classic UI only**
+> (the `collective.aitools` backend). This Volto add-on is a scaffold with no
+> features wired in. A work-in-progress implementation — a chat assistant plus
+> edit-form tool widgets — lives on the `volto-wip` branch and will land in a
+> later release.
 
 ## Installation
 
