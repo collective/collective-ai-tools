@@ -1,0 +1,8 @@
+<tal:hmw i18n:domain="collective.aitools">
+  <div class="pat-aitools-help-me-write"
+       style="display: none"
+       tal:attributes="
+         data-pat-aitools-help-me-write view/config_json;
+       "
+  ></div>
+</tal:hmw>

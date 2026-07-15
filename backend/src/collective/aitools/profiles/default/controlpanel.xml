@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<object xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+        name="portal_controlpanel"
+>
+
+  <configlet action_id="ai-tools"
+             appId="collective.aitools"
+             category="plone-general"
+             condition_expr=""
+             icon_expr=""
+             title="AI Tools"
+             url_expr="string:${portal_url}/@@ai-tools"
+             visible="True"
+             i18n:attributes="title"
+  >
+    <permission>Manage portal</permission>
+  </configlet>
+
+  <!-- -*- extra stuff goes here -*- -->
+
+</object>

@@ -1,0 +1,8 @@
+<tal:ri i18n:domain="collective.aitools">
+  <div class="pat-aitools-recognize-image"
+       style="display: none"
+       tal:attributes="
+         data-pat-aitools-recognize-image view/config_json;
+       "
+  ></div>
+</tal:ri>

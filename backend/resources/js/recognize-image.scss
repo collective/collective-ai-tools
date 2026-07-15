@@ -1,0 +1,69 @@
+/* "Get image details" image-field button + status. */
+
+.aitools-ri {
+  margin: 0.5em 0;
+  font-size: 0.9rem;
+}
+
+.aitools-ri-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.35em 0.8em;
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #7b2ff7 0%, #4a6cf7 100%);
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.aitools-ri-btn:hover {
+  filter: brightness(1.08);
+}
+
+.aitools-ri-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.aitools-tool-stars {
+  flex: 0 0 auto;
+}
+
+.aitools-ri-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.4em;
+  font-size: 0.85rem;
+}
+
+.aitools-ri-status--loading {
+  color: #555;
+}
+
+.aitools-ri-status--success {
+  color: #1a7f37;
+}
+
+.aitools-ri-status--error {
+  color: #b3261e;
+}
+
+.aitools-ri-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(74, 108, 247, 0.3);
+  border-top-color: #4a6cf7;
+  border-radius: 50%;
+  animation: aitools-ri-spin 0.7s linear infinite;
+}
+
+@keyframes aitools-ri-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

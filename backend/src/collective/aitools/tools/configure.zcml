@@ -1,0 +1,35 @@
+<configure xmlns="http://namespaces.zope.org/zope">
+
+  <!-- AI tools, each a named IAITool utility (name == tool.name). -->
+
+  <utility
+      factory=".recognize_image.RecognizeImageTool"
+      provides="collective.aitools.interfaces.IAITool"
+      name="recognize_image"
+      />
+
+  <utility
+      factory=".help_me_write.HelpMeWriteTool"
+      provides="collective.aitools.interfaces.IAITool"
+      name="help_me_write"
+      />
+
+  <utility
+      factory=".summarize.SummarizeTool"
+      provides="collective.aitools.interfaces.IAITool"
+      name="summarize"
+      />
+
+  <utility
+      factory=".suggest_tags.SuggestTagsTool"
+      provides="collective.aitools.interfaces.IAITool"
+      name="suggest_tags"
+      />
+
+  <utility
+      factory=".assistant.AssistantTool"
+      provides="collective.aitools.interfaces.IAITool"
+      name="assistant"
+      />
+
+</configure>

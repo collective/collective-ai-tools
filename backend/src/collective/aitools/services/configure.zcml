@@ -1,0 +1,59 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="collective.aitools"
+    >
+
+  <plone:service
+      method="POST"
+      factory=".help_me_write.HelpMeWrite"
+      for="*"
+      permission="cmf.ModifyPortalContent"
+      name="@aitools-help-me-write"
+      />
+
+  <plone:service
+      method="POST"
+      factory=".recognize_image.RecognizeImage"
+      for="*"
+      permission="cmf.ModifyPortalContent"
+      name="@aitools-recognize-image"
+      />
+
+  <plone:service
+      method="POST"
+      factory=".summarize.Summarize"
+      for="*"
+      permission="cmf.ModifyPortalContent"
+      name="@aitools-summarize"
+      />
+
+  <plone:service
+      method="POST"
+      factory=".suggest_tags.SuggestTags"
+      for="*"
+      permission="cmf.ModifyPortalContent"
+      name="@aitools-suggest-tags"
+      />
+
+  <!-- Chat assistant. Gated at View so the authenticated members the viewlet
+       targets can chat; each capability self-gates (e.g. where_to_add needs
+       cmf.ModifyPortalContent). Anonymous rate-limiting is future work. -->
+  <plone:service
+      method="POST"
+      factory=".assistant.Assistant"
+      for="*"
+      permission="zope2.View"
+      name="@aitools-assistant"
+      />
+
+  <!-- Explicit, user-confirmed write endpoint for assistant proposals. Stub. -->
+  <plone:service
+      method="POST"
+      factory=".assistant.AssistantApply"
+      for="*"
+      permission="cmf.ModifyPortalContent"
+      name="@aitools-assistant-apply"
+      />
+
+</configure>

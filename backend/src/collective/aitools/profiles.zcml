@@ -1,0 +1,41 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+    i18n_domain="collective.aitools"
+    >
+
+  <genericsetup:registerProfile
+      name="default"
+      title="Collective AI Tools: Install"
+      description="This package provides tools powered by AI, both for editors as for anonymous visitors"
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      directory="profiles/default"
+      />
+
+  <genericsetup:registerProfile
+      name="initial"
+      title="Collective AI Tools: Example content"
+      description="Create example content to showcase this addon."
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      directory="profiles/initial"
+      pre_handler=".setuphandlers.initial.create_example_content"
+      />
+
+  <genericsetup:registerProfile
+      name="uninstall"
+      title="Collective AI Tools: Uninstall"
+      description="Uninstall Collective AI Tools setup."
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      directory="profiles/uninstall"
+      />
+
+  <!-- Hide Uninstall Profile-->
+  <utility
+      factory=".setuphandlers.HiddenProfiles"
+      name="collective.aitools"
+      />
+
+
+  <include package=".upgrades" />
+
+</configure>

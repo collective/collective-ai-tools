@@ -1,0 +1,24 @@
+<configure xmlns="http://namespaces.zope.org/zope">
+
+  <!-- Assistant capabilities, each a named IAIAssistantCapability utility
+       (name == capability.name). -->
+
+  <utility
+      factory=".search_site.SearchSiteCapability"
+      provides="collective.aitools.interfaces.IAIAssistantCapability"
+      name="search_site"
+      />
+
+  <utility
+      factory=".where_to_add.WhereToAddCapability"
+      provides="collective.aitools.interfaces.IAIAssistantCapability"
+      name="where_to_add"
+      />
+
+  <utility
+      factory=".propose_draft.ProposeDraftCapability"
+      provides="collective.aitools.interfaces.IAIAssistantCapability"
+      name="propose_draft"
+      />
+
+</configure>

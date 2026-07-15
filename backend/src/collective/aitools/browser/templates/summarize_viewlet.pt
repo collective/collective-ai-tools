@@ -1,0 +1,8 @@
+<tal:sm i18n:domain="collective.aitools">
+  <div class="pat-aitools-summarize"
+       style="display: none"
+       tal:attributes="
+         data-pat-aitools-summarize view/config_json;
+       "
+  ></div>
+</tal:sm>

@@ -1,0 +1,239 @@
+#--- PLEASE EDIT THE LINES BELOW CORRECTLY ---
+#SOME DESCRIPTIVE TITLE.
+#FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2026-07-01 18:25+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI +ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"Language-Code: en\n"
+"Language-Name: English\n"
+"Preferred-Encodings: utf-8 latin1\n"
+"Domain: collective.aitools\n"
+
+#: collective/aitools/controlpanels/ai_tools.py:32
+msgid "AI Tools"
+msgstr ""
+
+#: collective/aitools/browser/suggest_tags.py:49
+#: collective/aitools/browser/summarize.py:49
+msgid "Add some content first."
+msgstr ""
+
+#: collective/aitools/browser/suggest_tags.py:50
+msgid "Added tags."
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:51
+msgid "Analyzing image..."
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:53
+msgid "Choose an image first."
+msgstr ""
+
+#: collective/aitools/profiles.zcml:22
+msgid "Collective AI Tools: Example content"
+msgstr ""
+
+#: collective/aitools/profiles.zcml:13
+msgid "Collective AI Tools: Install"
+msgstr ""
+
+#: collective/aitools/profiles.zcml:30
+msgid "Collective AI Tools: Uninstall"
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:55
+msgid "Could not read the selected image."
+msgstr ""
+
+#: collective/aitools/profiles.zcml:22
+msgid "Create example content to showcase this addon."
+msgstr ""
+
+#: collective/aitools/interfaces.py:129
+msgid "Enable \"Help me write\""
+msgstr ""
+
+#: collective/aitools/interfaces.py:103
+msgid "Enable \"Recognize image\""
+msgstr ""
+
+#: collective/aitools/interfaces.py:175
+msgid "Enable \"Suggest tags\""
+msgstr ""
+
+#: collective/aitools/interfaces.py:149
+msgid "Enable \"Summarize\""
+msgstr ""
+
+#: collective/aitools/controlpanels/ai_tools.py:33
+msgid "Enable and configure the available AI tools."
+msgstr ""
+
+#: collective/aitools/browser/summarize.py:50
+msgid "Filled in the description."
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:54
+msgid "Filled in the empty fields."
+msgstr ""
+
+#: collective/aitools/interfaces.py:150
+#: collective/aitools/tools/summarize.py:15
+msgid "Generate a concise description/summary of an item from its text content (also usable as the SEO meta description)."
+msgstr ""
+
+#: collective/aitools/interfaces.py:104
+msgid "Generate a textual description of an item's image using a vision-capable model."
+msgstr ""
+
+#: collective/aitools/tools/recognize_image.py:82
+msgid "Generate a title, description and tags for an item's image using a vision-capable model."
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:65
+msgid "Generating..."
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:50
+msgid "Get image details"
+msgstr ""
+
+#: collective/aitools/tools/help_me_write.py:36
+msgid "Grammar check"
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:63
+#: collective/aitools/tools/help_me_write.py:55
+msgid "Help me write"
+msgstr ""
+
+#: collective/aitools/interfaces.py:138
+msgid "Help me write: model"
+msgstr ""
+
+#: collective/aitools/interfaces.py:168
+msgid "Instruction sent to the model."
+msgstr ""
+
+#: collective/aitools/interfaces.py:122
+msgid "Instruction sent to the vision model."
+msgstr ""
+
+#: collective/aitools/interfaces.py:139
+msgid "Model name to use. Leave empty to let collective.aisettings pick a completion-capable model."
+msgstr ""
+
+#: collective/aitools/interfaces.py:113
+msgid "Model name to use. Leave empty to let collective.aisettings pick a vision-capable model."
+msgstr ""
+
+#: collective/aitools/interfaces.py:130
+#: collective/aitools/tools/help_me_write.py:56
+msgid "Offer editors drafting and rewriting assistance (start a draft, grammar check, change tone, …)."
+msgstr ""
+
+#: collective/aitools/tools/recognize_image.py:81
+msgid "Recognize image"
+msgstr ""
+
+#: collective/aitools/interfaces.py:112
+msgid "Recognize image: model"
+msgstr ""
+
+#: collective/aitools/interfaces.py:121
+msgid "Recognize image: prompt"
+msgstr ""
+
+#: collective/aitools/tools/help_me_write.py:38
+msgid "Rewrite in a casual tone"
+msgstr ""
+
+#: collective/aitools/tools/help_me_write.py:37
+msgid "Rewrite in a professional tone"
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:67
+msgid "Select or enter some text first."
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:64
+msgid "Send"
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:66
+#: collective/aitools/browser/recognize_image.py:52
+#: collective/aitools/browser/suggest_tags.py:48
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: collective/aitools/tools/help_me_write.py:35
+msgid "Start a draft"
+msgstr ""
+
+#: collective/aitools/interfaces.py:176
+#: collective/aitools/tools/suggest_tags.py:50
+msgid "Suggest Subject keywords for an item from its text content, reusing tags already in use on the site where possible."
+msgstr ""
+
+#: collective/aitools/browser/suggest_tags.py:46
+#: collective/aitools/tools/suggest_tags.py:49
+msgid "Suggest tags"
+msgstr ""
+
+#: collective/aitools/interfaces.py:184
+msgid "Suggest tags: model"
+msgstr ""
+
+#: collective/aitools/interfaces.py:193
+msgid "Suggest tags: prompt"
+msgstr ""
+
+#: collective/aitools/browser/suggest_tags.py:47
+msgid "Suggesting tags..."
+msgstr ""
+
+#: collective/aitools/browser/summarize.py:46
+#: collective/aitools/tools/summarize.py:14
+msgid "Summarize"
+msgstr ""
+
+#: collective/aitools/interfaces.py:158
+msgid "Summarize: model"
+msgstr ""
+
+#: collective/aitools/interfaces.py:167
+msgid "Summarize: prompt"
+msgstr ""
+
+#: collective/aitools/browser/summarize.py:47
+msgid "Summarizing..."
+msgstr ""
+
+#: collective/aitools/browser/suggest_tags.py:51
+msgid "Tags are already set."
+msgstr ""
+
+#: collective/aitools/browser/summarize.py:51
+msgid "The description already has a value."
+msgstr ""
+
+#: collective/aitools/profiles.zcml:13
+msgid "This package provides tools powered by AI, both for editors as for anonymous visitors"
+msgstr ""
+
+#: collective/aitools/profiles.zcml:30
+msgid "Uninstall Collective AI Tools setup."
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:68
+msgid "What do you want to write about?"
+msgstr ""

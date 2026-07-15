@@ -1,0 +1,30 @@
+{
+  "name": "collective.aitools",
+  "version": "1.0.0",
+  "description": "Classic UI resources (Patternslib patterns) for collective.aitools.",
+  "license": "GPL-2.0-or-later",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@patternslib/patternslib": "*",
+    "@plone/mockup": "^5.1.0-alpha.3"
+  },
+  "devDependencies": {
+    "@patternslib/dev": "^3.3.1",
+    "clean-css-cli": "^5.6.0",
+    "npm-run-all": "^4.1.5"
+  },
+  "scripts": {
+    "build": "npm-run-all build:webpack",
+    "build:webpack": "NODE_ENV=production webpack --config webpack.config.js",
+    "build:stats": "NODE_ENV=production webpack --config webpack.config.js --json > stats.json",
+    "build:webpack:dev": "NODE_ENV=development webpack --config webpack.config.js",
+    "start:webpack": "NODE_ENV=development webpack serve --config webpack.config.js",
+    "watch:webpack": "NODE_ENV=development webpack --config webpack.config.js --watch"
+  },
+  "author": {
+    "name": "Enfold Systems, Inc.",
+    "email": "info@enfoldsystems.com"
+  }
+}

@@ -1,0 +1,7 @@
+<tal:as i18n:domain="collective.aitools">
+  <div class="pat-aitools-assistant"
+       tal:attributes="
+         data-pat-aitools-assistant view/config_json;
+       "
+  ></div>
+</tal:as>

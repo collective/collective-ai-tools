@@ -1,0 +1,57 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:browser="http://namespaces.zope.org/browser"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="collective.aitools"
+    >
+
+  <!-- Webpack build output (Patternslib bundle) served under
+       ++plone++collective.aitools, registered as a Plone bundle in
+       profiles/default/registry/resources.xml. -->
+  <plone:static
+      directory="static"
+      type="plone"
+      name="collective.aitools"
+      />
+
+  <browser:viewlet
+      name="collective.aitools.help_me_write"
+      manager="plone.app.layout.viewlets.interfaces.IPortalFooter"
+      class=".help_me_write.HelpMeWriteViewlet"
+      permission="zope2.View"
+      layer="..interfaces.IBrowserLayer"
+      />
+
+  <browser:viewlet
+      name="collective.aitools.recognize_image"
+      manager="plone.app.layout.viewlets.interfaces.IPortalFooter"
+      class=".recognize_image.RecognizeImageViewlet"
+      permission="zope2.View"
+      layer="..interfaces.IBrowserLayer"
+      />
+
+  <browser:viewlet
+      name="collective.aitools.summarize"
+      manager="plone.app.layout.viewlets.interfaces.IPortalFooter"
+      class=".summarize.SummarizeViewlet"
+      permission="zope2.View"
+      layer="..interfaces.IBrowserLayer"
+      />
+
+  <browser:viewlet
+      name="collective.aitools.suggest_tags"
+      manager="plone.app.layout.viewlets.interfaces.IPortalFooter"
+      class=".suggest_tags.SuggestTagsViewlet"
+      permission="zope2.View"
+      layer="..interfaces.IBrowserLayer"
+      />
+
+  <browser:viewlet
+      name="collective.aitools.assistant"
+      manager="plone.app.layout.viewlets.interfaces.IPortalFooter"
+      class=".assistant.AssistantViewlet"
+      permission="zope2.View"
+      layer="..interfaces.IBrowserLayer"
+      />
+
+</configure>

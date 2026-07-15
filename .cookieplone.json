@@ -1,0 +1,16 @@
+{
+    "title": "Collective AI Tools",
+    "description": "This package provides tools powered by AI, both for editors as for anonymous visitors",
+    "project_slug": "collective-ai-tools",
+    "author": "Franco Pellegrini",
+    "email": "frapell@gmail.com",
+    "use_prerelease_versions": false,
+    "plone_version": "6.0.15",
+    "volto_version": "19.1.4",
+    "python_package_name": "collective.aitools",
+    "npm_package_name": "volto-collective-aitools",
+    "github_organization": "collective",
+    "container_registry": "github",
+    "initialize_documentation": true,
+    "__template__": "monorepo_addon"
+}

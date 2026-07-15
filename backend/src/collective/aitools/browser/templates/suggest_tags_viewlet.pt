@@ -1,0 +1,8 @@
+<tal:st i18n:domain="collective.aitools">
+  <div class="pat-aitools-suggest-tags"
+       style="display: none"
+       tal:attributes="
+         data-pat-aitools-suggest-tags view/config_json;
+       "
+  ></div>
+</tal:st>

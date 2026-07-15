@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<registry>
+
+  <records prefix="plone.bundles/aitools"
+           interface="Products.CMFPlone.interfaces.IBundleRegistry"
+           remove="true"
+  >
+  </records>
+
+</registry>
