@@ -7,9 +7,11 @@ narrowed by a keyword matching the container title/path). Read-only: it only
 """
 
 from collective.aitools import _
+from collective.aitools import logger
 from collective.aitools.capabilities.base import AICapability
 from collective.aitools.capabilities.types import resolve_portal_type
 from plone import api
+from typing import ClassVar
 
 
 #: Hard cap on candidate containers returned to the model.
@@ -34,7 +36,7 @@ class WhereToAddCapability(AICapability):
         "with their title and URL. Use this to answer 'where should I put …' "
         "questions. This only suggests a location; it does not create anything."
     )
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "portal_type": {
@@ -63,7 +65,10 @@ class WhereToAddCapability(AICapability):
             return {"candidates": [], "message": "portal_type is required"}
         resolved_type = resolve_portal_type(portal_type)
         if resolved_type is None:
-            return {"candidates": [], "message": f"Unknown content type {portal_type!r}."}
+            return {
+                "candidates": [],
+                "message": f"Unknown content type {portal_type!r}.",
+            }
         keyword = (keyword or "").strip().lower()
 
         catalog = api.portal.get_tool("portal_catalog")
@@ -75,6 +80,7 @@ class WhereToAddCapability(AICapability):
             try:
                 container = brain.getObject()
             except Exception:
+                logger.exception("Could not wake up object for %s", brain.getPath())
                 continue
             if resolved_type not in _addable_type_ids(container):
                 continue
@@ -82,13 +88,11 @@ class WhereToAddCapability(AICapability):
             path = brain.getPath()
             if keyword and keyword not in title.lower() and keyword not in path.lower():
                 continue
-            candidates.append(
-                {
-                    "title": title,
-                    "url": brain.getURL(),
-                    "path": path,
-                }
-            )
+            candidates.append({
+                "title": title,
+                "url": brain.getURL(),
+                "path": path,
+            })
             if len(candidates) >= MAX_RESULTS:
                 break
 

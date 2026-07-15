@@ -108,13 +108,11 @@ class AssistantTool(AITool):
                 # it to the UI (the model still narrates it in its reply).
                 if isinstance(result, dict) and result.get("proposal"):
                     proposals.append(result["proposal"])
-                convo.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.get("id"),
-                        "content": json.dumps(result),
-                    }
-                )
+                convo.append({
+                    "role": "tool",
+                    "tool_call_id": call.get("id"),
+                    "content": json.dumps(result),
+                })
 
         # Ran out of steps without a final answer.
         logger.info("assistant: reached MAX_STEPS without a final answer.")

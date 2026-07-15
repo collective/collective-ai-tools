@@ -8,6 +8,7 @@ anonymous visitor never sees private content in the results.
 from collective.aitools import _
 from collective.aitools.capabilities.base import AICapability
 from plone import api
+from typing import ClassVar
 
 
 #: Hard cap on results returned to the model (keeps the tool result bounded).
@@ -24,7 +25,7 @@ class SearchSiteCapability(AICapability):
         "this to find existing pages or to answer 'where do I find …' "
         "questions."
     )
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "query": {
@@ -58,12 +59,10 @@ class SearchSiteCapability(AICapability):
 
         results = []
         for brain in brains[:limit]:
-            results.append(
-                {
-                    "title": brain.Title or brain.id,
-                    "url": brain.getURL(),
-                    "type": brain.portal_type,
-                    "description": (brain.Description or "").strip(),
-                }
-            )
+            results.append({
+                "title": brain.Title or brain.id,
+                "url": brain.getURL(),
+                "type": brain.portal_type,
+                "description": (brain.Description or "").strip(),
+            })
         return {"results": results, "count": len(results)}

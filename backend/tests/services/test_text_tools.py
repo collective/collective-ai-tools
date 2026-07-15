@@ -47,7 +47,11 @@ def fake_service(portal):
 
 def _reply(service_factory, portal, body):
     response = HTTPResponse()
-    environ = {"REQUEST_METHOD": "POST", "SERVER_NAME": "localhost", "SERVER_PORT": "80"}
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "SERVER_NAME": "localhost",
+        "SERVER_PORT": "80",
+    }
     request = HTTPRequest(BytesIO(b""), environ, response)
     request.set("BODY", json.dumps(body))
     service = service_factory()

@@ -21,9 +21,8 @@ class TestSetupInstall:
         from plone import api
 
         prefix = "plone.bundles/aitools"
+        assert api.portal.get_registry_record(f"{prefix}.enabled", default=None) is True
         assert (
-            api.portal.get_registry_record(f"{prefix}.enabled", default=None) is True
+            api.portal.get_registry_record(f"{prefix}.jscompilation", default="")
+            == "++plone++collective.aitools/aitools-remote.min.js"
         )
-        assert api.portal.get_registry_record(
-            f"{prefix}.jscompilation", default=""
-        ) == "++plone++collective.aitools/aitools-remote.min.js"

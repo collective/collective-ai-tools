@@ -26,6 +26,7 @@ from collective.aitools.tools import get_tool
 from plone import api
 from pydantic import BaseModel
 from pydantic import Field
+from typing import ClassVar
 from zope.component import getUtility
 
 
@@ -133,7 +134,7 @@ class ProposeDraftCapability(AICapability):
         "it returns a proposal the user must confirm. Use 'where_to_add' first "
         "if you are unsure of a valid folder."
     )
-    parameters = {
+    parameters: ClassVar[dict] = {
         "type": "object",
         "properties": {
             "container_path": {

@@ -83,9 +83,7 @@ class Assistant(Service):
             }
 
         try:
-            result = tool.run(
-                self.context, messages=messages, request=self.request
-            )
+            result = tool.run(self.context, messages=messages, request=self.request)
         except Exception as exc:
             logger.exception("assistant endpoint failed")
             self.request.response.setStatus(500)
@@ -164,9 +162,7 @@ class AssistantApply(Service):
         proposal = data.get("proposal")
         if not isinstance(proposal, dict):
             self.request.response.setStatus(400)
-            return {
-                "error": {"type": "BadRequest", "message": "proposal is required"}
-            }
+            return {"error": {"type": "BadRequest", "message": "proposal is required"}}
 
         handlers = {"create_draft": self._create_draft}
         handler = handlers.get(proposal.get("type"))

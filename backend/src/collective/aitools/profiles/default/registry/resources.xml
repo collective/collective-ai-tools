@@ -4,13 +4,13 @@
   <!-- Classic-UI Patternslib bundle built from resources/ by webpack and
        served under ++plone++collective.aitools (see browser/configure.zcml).
        The remote entry is the webpack module-federation container. -->
-  <records prefix="plone.bundles/aitools"
-           interface="Products.CMFPlone.interfaces.IBundleRegistry"
+  <records interface="Products.CMFPlone.interfaces.IBundleRegistry"
+           prefix="plone.bundles/aitools"
   >
     <value key="enabled">True</value>
-    <value key="expression"></value>
+    <value key="expression" />
     <value key="jscompilation">++plone++collective.aitools/aitools-remote.min.js</value>
-    <value key="csscompilation"></value>
+    <value key="csscompilation" />
     <value key="load_async">False</value>
     <value key="load_defer">True</value>
   </records>

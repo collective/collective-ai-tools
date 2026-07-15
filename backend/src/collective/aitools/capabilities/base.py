@@ -8,6 +8,7 @@ utilities. See :class:`collective.aitools.interfaces.IAIAssistantCapability`.
 
 from AccessControl import getSecurityManager
 from collective.aitools.interfaces import IAIAssistantCapability
+from typing import ClassVar
 from zope.component import getUtilitiesFor
 from zope.component import queryUtility
 from zope.interface import implementer
@@ -53,7 +54,7 @@ class AICapability:
     name = ""
     description = ""
     #: JSON Schema for the arguments. Default: a no-argument object.
-    parameters = {"type": "object", "properties": {}}
+    parameters: ClassVar[dict] = {"type": "object", "properties": {}}
     #: Zope permission required on the context. ``zope2.View`` means "any
     #: authenticated (or anonymous) user who can see the context".
     permission = "zope2.View"

@@ -42,27 +42,25 @@ class AssistantViewlet(ViewletBase):
         return f"{self.context.absolute_url()}/@aitools-assistant-apply"
 
     def config_json(self) -> str:
-        t = lambda msg: translate(msg, context=self.request)  # noqa: E731
-        return json.dumps(
-            {
-                "endpoint": self.endpoint_url(),
-                "applyEndpoint": self.apply_url(),
-                # CSRF token for the write (apply) request; plone.protect accepts
-                # it via the X-CSRF-TOKEN header. Freshly minted per page render.
-                "token": createToken(),
-                "labels": {
-                    "title": t(_("Assistant")),
-                    "open": t(_("Open the assistant")),
-                    "close": t(_("Close")),
-                    "new_chat": t(_("Start new chat")),
-                    "placeholder": t(_("Ask me anything about this site…")),
-                    "send": t(_("Send")),
-                    "loading": t(_("Thinking…")),
-                    "error": t(_("Something went wrong. Please try again.")),
-                    "create": t(_("Create draft")),
-                    "creating": t(_("Creating…")),
-                    "created": t(_("Draft created:")),
-                    "open_item": t(_("Open")),
-                },
-            }
-        )
+        t = lambda msg: translate(msg, context=self.request)
+        return json.dumps({
+            "endpoint": self.endpoint_url(),
+            "applyEndpoint": self.apply_url(),
+            # CSRF token for the write (apply) request; plone.protect accepts
+            # it via the X-CSRF-TOKEN header. Freshly minted per page render.
+            "token": createToken(),
+            "labels": {
+                "title": t(_("Assistant")),
+                "open": t(_("Open the assistant")),
+                "close": t(_("Close")),
+                "new_chat": t(_("Start new chat")),
+                "placeholder": t(_("Ask me anything about this site…")),
+                "send": t(_("Send")),
+                "loading": t(_("Thinking…")),
+                "error": t(_("Something went wrong. Please try again.")),
+                "create": t(_("Create draft")),
+                "creating": t(_("Creating…")),
+                "created": t(_("Draft created:")),
+                "open_item": t(_("Open")),
+            },
+        })

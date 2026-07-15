@@ -10,8 +10,8 @@
        profiles/default/registry/resources.xml. -->
   <plone:static
       directory="static"
-      type="plone"
       name="collective.aitools"
+      type="plone"
       />
 
   <browser:viewlet
