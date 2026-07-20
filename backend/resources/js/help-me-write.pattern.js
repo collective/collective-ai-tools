@@ -305,8 +305,20 @@ function setup(CONFIG) {
         if (!editor || editor.__aitoolsHmwAttached) {
             return;
         }
-        const container = editor.getContainer && editor.getContainer();
-        if (!container || !container.parentNode) {
+        // Inline editors (Mosaic rich-text tiles) have no iframe container and
+        // are only present in the Mosaic editor; only wire them up when the
+        // viewlet signalled Mosaic is installed. Iframe editors (classic edit
+        // forms) keep their existing placement.
+        let anchor;
+        if (editor.inline) {
+            if (!CONFIG.mosaicInline) {
+                return;
+            }
+            anchor = editor.getElement && editor.getElement();
+        } else {
+            anchor = editor.getContainer && editor.getContainer();
+        }
+        if (!anchor || !anchor.parentNode) {
             return;
         }
         editor.__aitoolsHmwAttached = true;
@@ -349,7 +361,7 @@ function setup(CONFIG) {
         bar.appendChild(menu);
         bar.appendChild(status);
 
-        container.parentNode.insertBefore(bar, container);
+        anchor.parentNode.insertBefore(bar, anchor);
 
         // Drop our marker (and the bar) if the editor is torn down.
         editor.on("remove", function () {

@@ -10,6 +10,7 @@ resource registry, so the viewlet no longer injects any script/CSS.
 """
 
 from collective.aitools import _
+from collective.aitools.browser import mosaic_installed
 from collective.aitools.tools import get_tool
 from collective.aitools.tools.help_me_write import OPERATION_TITLES
 from collective.aitools.tools.help_me_write import OPERATIONS_REQUIRING_INPUT
@@ -59,6 +60,9 @@ class HelpMeWriteViewlet(ViewletBase):
         return json.dumps({
             "endpoint": self.endpoint_url(),
             "operations": self._operations(),
+            # Mosaic rich-text tiles use inline TinyMCE editors; only wire the
+            # bar into inline editors when Mosaic is present (see the pattern).
+            "mosaicInline": mosaic_installed(),
             "labels": {
                 "button": t(_("Help me write")),
                 "send": t(_("Send")),

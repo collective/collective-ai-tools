@@ -10,6 +10,7 @@ resource registry, so the viewlet no longer injects any script/CSS.
 """
 
 from collective.aitools import _
+from collective.aitools.browser import mosaic_installed
 from collective.aitools.tools import get_tool
 from plone.app.layout.viewlets.common import ViewletBase
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
@@ -44,7 +45,7 @@ class RecognizeImageViewlet(ViewletBase):
 
     def config_json(self) -> str:
         t = lambda msg: translate(msg, context=self.request)
-        return json.dumps({
+        config = {
             "endpoint": self.endpoint_url(),
             "labels": {
                 "button": t(_("Get image details")),
@@ -54,4 +55,20 @@ class RecognizeImageViewlet(ViewletBase):
                 "done": t(_("Filled in the empty fields.")),
                 "readError": t(_("Could not read the selected image.")),
             },
-        })
+        }
+        # In the Mosaic editor, image tiles are edited in a modal tile form that
+        # does not carry the page's Title/Description/Subject. When Mosaic is
+        # present, tell the pattern to fill the tile's own fields instead.
+        if mosaic_installed():
+            config["mosaic"] = {
+                "tileFormSelector": ".pat-modal form, .plone-modal form",
+                "fields": [
+                    "caption",
+                    "alt_text",
+                    "altText",
+                    "alt",
+                    "title",
+                    "description",
+                ],
+            }
+        return json.dumps(config)

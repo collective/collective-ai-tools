@@ -31,6 +31,37 @@ function applyDetails(form, details) {
     setTags(findField(form, "subjects") || findField(form, "subject"), details.tags);
 }
 
+// Mosaic image tiles are edited in a modal tile form that has none of the
+// page's Title/Description/Subject fields — only the tile's own fields. Map the
+// recognized details onto whichever configured fields the tile form exposes
+// (title -> title; caption/alt/description -> the description, which the vision
+// prompt tailors for use as alternative text). Empty-only, never clobbering.
+function tileFieldValue(suffix, details) {
+    return /title/i.test(suffix) ? details.title : details.description;
+}
+
+// The tile edit form the image input belongs to, or null when the input is on
+// a classic add/edit form (Mosaic disabled, or not inside a tile modal).
+function tileFormFor(CONFIG, input) {
+    if (!CONFIG.mosaic || !CONFIG.mosaic.tileFormSelector) {
+        return null;
+    }
+    return input.closest(CONFIG.mosaic.tileFormSelector);
+}
+
+// Does the tile form expose at least one field we could fill?
+function hasTileTargets(CONFIG, form) {
+    return (CONFIG.mosaic.fields || []).some(function (suffix) {
+        return !!findField(form, suffix);
+    });
+}
+
+function applyTileDetails(CONFIG, form, details) {
+    (CONFIG.mosaic.fields || []).forEach(function (suffix) {
+        setTextField(findField(form, suffix), tileFieldValue(suffix, details));
+    });
+}
+
 /* ---- UI ---- */
 
 function setStatus(bar, kind, message) {
@@ -117,7 +148,12 @@ function run(CONFIG, input, bar, form) {
         })
         .then(function (data) {
             const details = (data && data.result) || {};
-            applyDetails(form, details);
+            const tileForm = tileFormFor(CONFIG, input);
+            if (tileForm) {
+                applyTileDetails(CONFIG, tileForm, details);
+            } else {
+                applyDetails(form, details);
+            }
             setBusy(bar, false);
             setStatus(bar, "success", L.done || "Done.");
         })
@@ -133,6 +169,12 @@ function run(CONFIG, input, bar, form) {
 
 function attach(CONFIG, input) {
     if (input.__aitoolsRiAttached) {
+        return;
+    }
+    // Inside a Mosaic tile edit form, only offer the button when the tile
+    // actually has a field we can fill; otherwise it would do nothing.
+    const tileForm = tileFormFor(CONFIG, input);
+    if (tileForm && !hasTileTargets(CONFIG, tileForm)) {
         return;
     }
     input.__aitoolsRiAttached = true;
