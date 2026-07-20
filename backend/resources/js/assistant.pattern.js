@@ -12,11 +12,13 @@
  * was open, re-opens the widget where the user left off.
  */
 import Base from "@patternslib/patternslib/src/core/base";
-import { postJSON } from "./lib/ui";
+import { getJSON, postJSON } from "./lib/ui";
 import { renderMarkdown } from "./lib/markdown";
 import "./assistant.scss";
 
 const STORE_KEY = "aitools-assistant-session";
+// How often to poll the async assistant task for its result.
+const POLL_INTERVAL_MS = 2000;
 
 export default Base.extend({
     name: "aitools-assistant",
@@ -25,6 +27,7 @@ export default Base.extend({
     defaults: {
         endpoint: "",
         applyEndpoint: "",
+        statusEndpoint: "",
         labels: {},
     },
 
@@ -36,6 +39,9 @@ export default Base.extend({
         // -- persisted session ----------------------------------------------
         // transcript: [{role: "user"|"assistant", content, proposals?}]
         let state = { open: false, transcript: [] };
+        // Bumped on "new chat" so an in-flight poll from an abandoned
+        // conversation can tell it is stale and drop its result.
+        let generation = 0;
         try {
             const saved = window.sessionStorage.getItem(STORE_KEY);
             if (saved) {
@@ -180,7 +186,65 @@ export default Base.extend({
             });
         }
 
-        // -- ask -------------------------------------------------------------
+        // -- ask (async: start a task, then poll) ----------------------------
+
+        // Append the finished answer to the transcript and re-enable input.
+        // Ignored when the conversation was reset while the task ran.
+        function finish(status, gen, reply, proposals) {
+            if (gen !== generation) {
+                return;
+            }
+            if (status.parentNode) {
+                log.removeChild(status);
+            }
+            state.transcript.push({
+                role: "assistant",
+                content: reply,
+                proposals: proposals,
+            });
+            save();
+            addBubble("assistant", reply);
+            proposals.forEach(renderProposal);
+            send.disabled = false;
+            input.focus();
+        }
+
+        function showError(status, gen, message) {
+            if (gen !== generation) {
+                return;
+            }
+            status.classList.add("aitools-assistant-error-msg");
+            status.textContent = message || L.error;
+            send.disabled = false;
+        }
+
+        // Poll the task status every POLL_INTERVAL_MS until done/error.
+        function poll(taskId, status, gen) {
+            if (gen !== generation) {
+                return;
+            }
+            getJSON(CONFIG.statusEndpoint + "/" + encodeURIComponent(taskId), L.error)
+                .then(function (data) {
+                    if (gen !== generation) {
+                        return;
+                    }
+                    const st = data && data.status;
+                    if (st === "done") {
+                        const result = (data && data.result) || {};
+                        finish(status, gen, result.reply || "", result.proposals || []);
+                    } else if (st === "error") {
+                        showError(status, gen, (data && data.error) || L.error);
+                    } else {
+                        window.setTimeout(function () {
+                            poll(taskId, status, gen);
+                        }, POLL_INTERVAL_MS);
+                    }
+                })
+                .catch(function (err) {
+                    showError(status, gen, (err && err.message) || L.error);
+                });
+        }
+
         function ask() {
             const text = (input.value || "").trim();
             if (!text) {
@@ -192,32 +256,26 @@ export default Base.extend({
             addBubble("user", text);
             const status = addBubble("status", L.loading || "Thinking…");
             send.disabled = true;
+            const gen = generation;
 
             post(CONFIG.endpoint, { messages: messages() })
                 .then(function (data) {
-                    log.removeChild(status);
-                    const reply = (data && data.reply) || "";
-                    const proposals = (data && data.proposals) || [];
-                    state.transcript.push({
-                        role: "assistant",
-                        content: reply,
-                        proposals: proposals,
-                    });
-                    save();
-                    addBubble("assistant", reply);
-                    proposals.forEach(renderProposal);
-                    send.disabled = false;
-                    input.focus();
+                    const taskId = data && data.task_id;
+                    if (!taskId) {
+                        showError(status, gen, L.error);
+                        return;
+                    }
+                    poll(taskId, status, gen);
                 })
                 .catch(function (err) {
-                    status.classList.add("aitools-assistant-error-msg");
-                    status.textContent = (err && err.message) || L.error;
-                    send.disabled = false;
+                    showError(status, gen, (err && err.message) || L.error);
                 });
         }
 
         // -- new chat --------------------------------------------------------
         function newChat() {
+            // Invalidate any in-flight poll so its answer isn't dropped here.
+            generation += 1;
             state.transcript = [];
             save();
             log.innerHTML = "";

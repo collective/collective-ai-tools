@@ -1,0 +1,1 @@
+Run the chat Assistant asynchronously: the endpoint starts a background task and returns a task id, and the widget keeps showing "Thinking…" while polling every 2 seconds until the answer is ready. @frapell

@@ -47,6 +47,17 @@
       name="@aitools-assistant"
       />
 
+  <!-- Poll an in-flight assistant turn started by @aitools-assistant. for="*"
+       because the widget (and thus the poll) runs sitewide, including the
+       Plone root. -->
+  <plone:service
+      method="GET"
+      factory=".assistant.AssistantStatus"
+      for="*"
+      permission="zope2.View"
+      name="@aitools-assistant-status"
+      />
+
   <!-- Explicit, user-confirmed write endpoint for assistant proposals. Stub. -->
   <plone:service
       method="POST"

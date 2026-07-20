@@ -41,11 +41,16 @@ class AssistantViewlet(ViewletBase):
     def apply_url(self) -> str:
         return f"{self.context.absolute_url()}/@aitools-assistant-apply"
 
+    def status_url(self) -> str:
+        return f"{self.context.absolute_url()}/@aitools-assistant-status"
+
     def config_json(self) -> str:
         t = lambda msg: translate(msg, context=self.request)
         return json.dumps({
             "endpoint": self.endpoint_url(),
             "applyEndpoint": self.apply_url(),
+            # Poll base; the widget appends "/<task_id>" (GET).
+            "statusEndpoint": self.status_url(),
             # CSRF token for the write (apply) request; plone.protect accepts
             # it via the X-CSRF-TOKEN header. Freshly minted per page render.
             "token": createToken(),
