@@ -9,6 +9,13 @@
 
 <!-- towncrier release notes start -->
 
+## 1.1.1 (2026-07-21)
+
+
+### Bug fixes:
+
+- Change the position of the help me write button for inline TinyMCE to avoid conflicts with the toolbar. @frapell 
+
 ## 1.1.0 (2026-07-21)
 
 
