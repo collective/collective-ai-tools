@@ -1,1 +1,0 @@
-Add the help me write and identify image on mosaic tiles when available. @frapell

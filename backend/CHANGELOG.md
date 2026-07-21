@@ -9,6 +9,15 @@
 
 <!-- towncrier release notes start -->
 
+## 1.1.0 (2026-07-21)
+
+
+### New features:
+
+- Add the help me write and identify image on mosaic tiles when available. @frapell 
+- Run the chat Assistant asynchronously: the endpoint starts a background task and returns a task id, and the widget keeps showing "Thinking…" while polling every 2 seconds until the answer is ready. @frapell 
+- When the Assistant proposes creating an Event, derive the event's start/end from the brief — both explicit dates ("on July 21st 2026") and relative ones ("in 2 weeks", anchored to the current date) — and set them on the created event. @frapell 
+
 ## 1.0.0 (2026-07-15)
 
 

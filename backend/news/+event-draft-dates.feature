@@ -1,1 +1,0 @@
-When the Assistant proposes creating an Event, derive the event's start/end from the brief — both explicit dates ("on July 21st 2026") and relative ones ("in 2 weeks", anchored to the current date) — and set them on the created event. @frapell
