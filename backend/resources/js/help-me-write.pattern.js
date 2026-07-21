@@ -361,7 +361,17 @@ function setup(CONFIG) {
         bar.appendChild(menu);
         bar.appendChild(status);
 
-        anchor.parentNode.insertBefore(bar, anchor);
+        if (editor.inline) {
+            // Inline (Mosaic tile) editors show a floating toolbar docked
+            // against the *top* edge of the editable element (appended to
+            // <body> with a high z-index), so a bar placed above it gets
+            // covered. Place ours *below* the editable instead — the inline
+            // toolbar never docks at the bottom edge, so the two never overlap.
+            bar.classList.add("aitools-hmw--inline");
+            anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+        } else {
+            anchor.parentNode.insertBefore(bar, anchor);
+        }
 
         // Drop our marker (and the bar) if the editor is torn down.
         editor.on("remove", function () {

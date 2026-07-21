@@ -6,6 +6,21 @@
   font-size: 0.9rem;
 }
 
+/* Inline (Mosaic tile) editors dock TinyMCE's floating toolbar against the top
+   edge of the editable area, so the bar is placed *below* the content instead
+   of above it: flip the spacing and open the operations menu upward so it stays
+   next to the content it edits. */
+.aitools-hmw--inline {
+  margin: 0.4em 0 0;
+}
+
+.aitools-hmw--inline .aitools-hmw-menu {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.25em;
+}
+
 .aitools-hmw-btn {
   display: inline-flex;
   align-items: center;
