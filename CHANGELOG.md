@@ -7,6 +7,29 @@
 -->
 
 <!-- towncrier release notes start -->
+## 1.1.2 (2026-07-21)
+
+### Backend
+
+
+#### Bug fixes:
+
+- Put the AI helping button next to the action buttons in mosaic. @frapell 
+
+
+
+### Frontend
+
+No significant changes.
+
+
+### Project
+
+No significant changes.
+
+
+
+
 ## 1.1.1 (2026-07-21)
 
 ### Backend
