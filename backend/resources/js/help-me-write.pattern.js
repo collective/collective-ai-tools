@@ -365,10 +365,20 @@ function setup(CONFIG) {
             // Inline (Mosaic tile) editors show a floating toolbar docked
             // against the *top* edge of the editable element (appended to
             // <body> with a high z-index), so a bar placed above it gets
-            // covered. Place ours *below* the editable instead — the inline
-            // toolbar never docks at the bottom edge, so the two never overlap.
+            // covered. Drop ours into the tile's own control bar
+            // (`.mosaic-tile-control.mosaic-tile-buttons`) as its first child,
+            // which sits clear of the floating toolbar. Fall back to placing
+            // it below the editable if that control isn't present.
             bar.classList.add("aitools-hmw--inline");
-            anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+            const tile = anchor.closest(".mosaic-tile");
+            const buttons =
+                tile &&
+                tile.querySelector(".mosaic-tile-control.mosaic-tile-buttons");
+            if (buttons) {
+                buttons.insertBefore(bar, buttons.firstChild);
+            } else {
+                anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+            }
         } else {
             anchor.parentNode.insertBefore(bar, anchor);
         }
