@@ -139,14 +139,26 @@ export default Base.extend({
             return bubble;
         }
 
+        // Format an ISO datetime for display; fall back to the raw string.
+        function formatWhen(iso) {
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) {
+                return iso;
+            }
+            return d.toLocaleString();
+        }
+
         function renderProposal(proposal) {
             const card = el("div", "aitools-assistant-proposal");
-            const label =
+            let label =
                 proposal.portal_type +
                 " · " +
                 (proposal.title || "") +
                 " → " +
                 (proposal.container_title || proposal.container_path || "");
+            if (proposal.start) {
+                label += " · " + formatWhen(proposal.start);
+            }
             card.appendChild(el("div", "aitools-assistant-proposal-label", label));
 
             const btn = el("button", "aitools-assistant-proposal-btn", L.create || "Create draft");

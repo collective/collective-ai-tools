@@ -25,6 +25,8 @@ from plone.app.textfield.value import RichTextValue
 from plone.dexterity.utils import iterSchemata
 from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
+from datetime import datetime
+from datetime import timedelta
 from zope.interface import implementer
 from zope.publisher.interfaces import IPublishTraverse
 from zope.schema import getFields
@@ -44,6 +46,63 @@ def _has_richtext_field(obj, name):
         if field is not None and IRichText.providedBy(field):
             return True
     return False
+
+
+def _is_event(obj):
+    """Return ``True`` when ``obj`` carries the event start/end behavior.
+
+    ``plone.app.event`` is an optional dependency, so import it lazily; when it
+    is absent nothing is an event and no dates are ever set."""
+    try:
+        from plone.app.event.dx.behaviors import IEventBasic
+    except Exception:
+        return False
+    return IEventBasic.providedBy(obj)
+
+
+def _parse_dt(value, context):
+    """Parse an ISO 8601 string into a timezone-aware datetime, or ``None``.
+
+    Naive values are localized to the portal/user timezone (what the event
+    widgets use). Anything unparseable returns ``None`` so the caller falls back
+    to plone.app.event's defaults rather than failing the whole creation."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    # Tolerate a trailing "Z" (UTC) which fromisoformat rejects before 3.11.
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        return dt
+    from plone.app.event.base import default_timezone
+
+    tz = default_timezone(context, as_tzinfo=True)
+    # pytz zones localize via .localize(); other tzinfos via replace().
+    if hasattr(tz, "localize"):
+        return tz.localize(dt)
+    return dt.replace(tzinfo=tz)
+
+
+def _apply_event_dates(obj, proposal, context):
+    """Set ``start``/``end`` on an event ``obj`` from the proposal, if present.
+
+    Defaults ``end`` to one hour after ``start`` when it is missing or not after
+    it. No-ops (leaving plone.app.event defaults) when there is no valid
+    start."""
+    start = _parse_dt(proposal.get("start"), context)
+    if start is None:
+        return False
+    end = _parse_dt(proposal.get("end"), context)
+    if end is None or end < start:
+        end = start + timedelta(hours=1)
+    obj.start = start
+    obj.end = end
+    obj.reindexObject()
+    return True
 
 
 def _sanitize_messages(raw):
@@ -181,6 +240,9 @@ class AssistantApply(Service):
         if body and _has_richtext_field(obj, "text"):
             obj.text = RichTextValue(body, "text/html", "text/x-html-safe")
             obj.reindexObject()
+
+        if _is_event(obj):
+            _apply_event_dates(obj, proposal, self.context)
 
         return {
             "created": True,

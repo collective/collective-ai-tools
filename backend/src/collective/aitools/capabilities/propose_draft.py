@@ -24,10 +24,14 @@ from collective.aitools.capabilities.base import AICapability
 from collective.aitools.capabilities.types import resolve_portal_type
 from collective.aitools.tools import get_tool
 from plone import api
+from plone.dexterity.utils import iterSchemataForType
 from pydantic import BaseModel
 from pydantic import Field
 from typing import ClassVar
+from typing import Optional
 from zope.component import getUtility
+from zope.schema import getFields
+from zope.schema.interfaces import IDatetime
 
 
 #: Permission required to add content (checked on the target container).
@@ -43,6 +47,19 @@ DRAFT_SYSTEM_PROMPT = (
     "but not padded."
 )
 
+#: Extra instructions appended to the draft prompt when the item is an event, so
+#: the model resolves any date/time in the brief into concrete start/end values.
+DRAFT_EVENT_SYSTEM_PROMPT = (
+    DRAFT_SYSTEM_PROMPT + " "
+    "This item is an event. If the brief indicates when the event happens — "
+    "either an explicit date ('on July 21st 2026', 'next Friday at 6pm') or a "
+    "relative one ('in 2 weeks', 'tomorrow') — resolve it against the current "
+    "date given to you and return 'start' and 'end' as ISO 8601 local datetimes "
+    "(e.g. '2026-07-21T18:00:00'), no timezone suffix. If only a start is "
+    "given, set 'end' to one hour after it. If the brief gives no timing at all, "
+    "return null for both 'start' and 'end' — never invent a date."
+)
+
 
 class GeneratedDraft(BaseModel):
     """Structured draft produced from the editor's brief."""
@@ -56,23 +73,86 @@ class GeneratedDraft(BaseModel):
     )
 
 
-def generate_draft(brief, portal_type, context=None):
+class GeneratedEventDraft(GeneratedDraft):
+    """A draft for an event: also carries the resolved start/end datetimes."""
+
+    start: Optional[str] = Field(
+        default=None,
+        description=(
+            "Event start as an ISO 8601 local datetime "
+            "(e.g. '2026-07-21T18:00:00'), or null when the brief gives no date."
+        ),
+    )
+    end: Optional[str] = Field(
+        default=None,
+        description=(
+            "Event end as an ISO 8601 local datetime, or null. Defaults to one "
+            "hour after the start when the brief gives a start but no end."
+        ),
+    )
+
+
+def _is_event_type(portal_type) -> bool:
+    """Return ``True`` when ``portal_type``'s schema has a ``start`` datetime
+    field (i.e. it is an event-like type, e.g. carries ``IEventBasic``).
+
+    Defensive: any lookup problem (unknown type, plone.app.event absent) simply
+    means "not an event"."""
+    try:
+        for schema in iterSchemataForType(portal_type):
+            field = getFields(schema).get("start")
+            if field is not None and IDatetime.providedBy(field):
+                return True
+    except Exception:
+        logger.exception("could not inspect schema for %r", portal_type)
+    return False
+
+
+def _current_date_line(context):
+    """A 'current date' line to anchor relative dates, or '' when unavailable."""
+    try:
+        from plone.app.event.base import default_timezone
+        from plone.app.event.base import localized_now
+
+        now = localized_now(context)
+        return (
+            f"Current date and time: {now.isoformat()} "
+            f"(timezone {default_timezone(context)}).\n\n"
+        )
+    except Exception:
+        logger.exception("propose_draft: could not determine current date")
+        return ""
+
+
+def generate_draft(brief, portal_type, context=None, is_event=False):
     """Generate a :class:`GeneratedDraft` from ``brief``, or ``None``.
 
     Uses the AI service with the Assistant tool's configured model (falling
-    back to a capability-picked completion model when unset).
+    back to a capability-picked completion model when unset). When ``is_event``
+    the model also resolves the brief's date/time into ``start``/``end``, so the
+    current date is supplied to anchor relative expressions.
     """
     service = getUtility(IAIService)
     assistant = get_tool("assistant")
     model = assistant.get_model() if assistant is not None else None
-    prompt = f"Content type: {portal_type}\n\nEditor's brief:\n{brief}"
+
+    if is_event:
+        system = DRAFT_EVENT_SYSTEM_PROMPT
+        output_type = GeneratedEventDraft
+        date_line = _current_date_line(context)
+    else:
+        system = DRAFT_SYSTEM_PROMPT
+        output_type = GeneratedDraft
+        date_line = ""
+
+    prompt = f"{date_line}Content type: {portal_type}\n\nEditor's brief:\n{brief}"
     try:
         return service.chat(
             prompt,
             model=model,
-            system=DRAFT_SYSTEM_PROMPT,
+            system=system,
             context=context,
-            output_type=GeneratedDraft,
+            output_type=output_type,
             use_tools=False,
         )
     except Exception:
@@ -201,10 +281,14 @@ class ProposeDraftCapability(AICapability):
         title = (title or "").strip()
         description = (description or "").strip()
         body = (body or "").strip()
+        is_event = _is_event_type(resolved_type)
+        start = end = None
 
-        # Generate whatever wasn't supplied explicitly, from the brief.
+        # Generate whatever wasn't supplied explicitly, from the brief. For an
+        # event we generate whenever a brief is present (even with explicit
+        # title/body) so the brief's date can be resolved into start/end.
         generated = False
-        if not (title and body):
+        if not (title and body) or (is_event and brief):
             if not brief:
                 return {
                     "error": (
@@ -212,7 +296,9 @@ class ProposeDraftCapability(AICapability):
                         "explicit title and body."
                     )
                 }
-            draft = generate_draft(brief, resolved_type, context=context)
+            draft = generate_draft(
+                brief, resolved_type, context=context, is_event=is_event
+            )
             if draft is None:
                 return {
                     "error": (
@@ -223,6 +309,9 @@ class ProposeDraftCapability(AICapability):
             title = title or (draft.title or "").strip()
             description = description or (draft.description or "").strip()
             body = body or (draft.body or "").strip()
+            if is_event:
+                start = (getattr(draft, "start", None) or "").strip() or None
+                end = (getattr(draft, "end", None) or "").strip() or None
             generated = True
 
         if not title:
@@ -237,13 +326,19 @@ class ProposeDraftCapability(AICapability):
             "description": description,
             "body": body,
         }
+        if is_event:
+            # May be null when the brief gave no timing; apply defaults then.
+            proposal["start"] = start
+            proposal["end"] = end
+
         # `proposal` is surfaced to the UI (as a confirm card) by the assistant
         # loop; the summary is what the model narrates to the user.
+        when = f" starting {start}" if start else ""
         return {
             "proposal": proposal,
             "generated": generated,
             "summary": (
-                f"Drafted a {resolved_type} titled {title!r} for "
+                f"Drafted a {resolved_type} titled {title!r}{when} for "
                 f"{proposal['container_title']!r}. Ask the user to confirm; they "
                 "can adjust it after it is created."
             ),
