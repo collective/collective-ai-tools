@@ -1,1 +1,0 @@
-Preserve the virtual-hosting state when the Assistant rebuilds its request on the background thread, so links it returns use the public host instead of the internal proxy hostname and the Plone site id. @frapell

@@ -9,6 +9,13 @@
 
 <!-- towncrier release notes start -->
 
+## 1.2.0 (2026-07-31)
+
+
+### Bug fixes:
+
+- Preserve the virtual-hosting state when the Assistant rebuilds its request on the background thread, so links it returns use the public host instead of the internal proxy hostname and the Plone site id. @frapell 
+
 ## 1.1.2 (2026-07-21)
 
 
