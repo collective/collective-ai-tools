@@ -58,6 +58,28 @@ def _make_request(body):
     return request
 
 
+def _vhm_request(portal):
+    """A request as VirtualHostMonster leaves it behind a proxy.
+
+    Zope is reached over an internal hop (``varnish:6080``), while the rewrite
+    ``/VirtualHostBase/https/example.com/<site>/VirtualHostRoot/...`` makes the
+    site answer as ``https://example.com/``. Mimics what ``setServerURL`` and
+    ``setVirtualRoot`` do, without needing a real traversal.
+    """
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "SERVER_NAME": "varnish",
+        "SERVER_PORT": "6080",
+        "HTTP_HOST": "varnish:6080",
+    }
+    request = HTTPRequest(BytesIO(b""), environ, HTTPResponse())
+    request.setServerURL("https", "example.com", 443)
+    request._script[:] = []
+    request.other["VirtualRootPhysicalPath"] = portal.getPhysicalPath()
+    request._resetURLS()
+    return request
+
+
 def _reply(portal, body):
     request = _make_request(body)
     service = Assistant()
@@ -129,6 +151,68 @@ class TestAssistantRunner:
         task = get_task(task_id)
         assert task["status"] == "error"
         assert "error" in task
+
+    def test_worker_request_keeps_virtual_hosting(self, portal):
+        # The worker's rebuilt request must generate the same public URLs the
+        # user sees, not the internal host + site id an environ-only snapshot
+        # would leave behind.
+        with api.env.adopt_roles(["Manager"]):
+            doc = api.content.create(
+                container=portal, type="Document", id="a-doc", title="A doc"
+            )
+        original = _vhm_request(portal)
+
+        environ = async_runner._snapshot_environ(original)
+        url_state = async_runner._snapshot_url_state(original)
+
+        rebuilt = HTTPRequest(BytesIO(b""), dict(environ), HTTPResponse())
+        async_runner._apply_url_state(rebuilt, url_state)
+
+        # This is what brain.getURL() / absolute_url() go through.
+        assert rebuilt.physicalPathToURL(doc.getPhysicalPath()) == (
+            "https://example.com/a-doc"
+        )
+        assert original.physicalPathToURL(doc.getPhysicalPath()) == (
+            "https://example.com/a-doc"
+        )
+
+    def test_worker_request_without_virtual_hosting(self, portal):
+        # No VHM in play: URLs keep the plain host and the site id, as they do
+        # for a request that reaches Zope directly.
+        with api.env.adopt_roles(["Manager"]):
+            doc = api.content.create(
+                container=portal, type="Document", id="a-doc", title="A doc"
+            )
+        original = _make_request({})
+
+        rebuilt = HTTPRequest(
+            BytesIO(b""), dict(async_runner._snapshot_environ(original)), HTTPResponse()
+        )
+        async_runner._apply_url_state(
+            rebuilt, async_runner._snapshot_url_state(original)
+        )
+
+        assert rebuilt.physicalPathToURL(doc.getPhysicalPath()) == (
+            original.physicalPathToURL(doc.getPhysicalPath())
+        )
+
+    def test_start_task_passes_url_state_to_worker(self, portal, monkeypatch):
+        # Guard the wiring: whatever _snapshot_url_state captured has to reach
+        # the worker, or the fix above is dead code in production.
+        captured = {}
+
+        class CapturingThread(FakeThread):
+            def __init__(self, *args, **kwargs):
+                captured.update(kwargs)
+
+        monkeypatch.setattr(async_runner, "Thread", CapturingThread)
+        request = _vhm_request(portal)
+
+        async_runner.start_assistant_task(
+            portal, request, [{"role": "user", "content": "hi"}]
+        )
+
+        assert async_runner._snapshot_url_state(request) in captured["args"]
 
 
 def _status_service(portal):
