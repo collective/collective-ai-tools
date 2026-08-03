@@ -1,1 +1,0 @@
-Offer the Assistant's capabilities to non-Manager users again: they declared ZCML permission ids (`zope2.View`) instead of permission titles (`View`), which `checkPermission` silently treats as Manager-only. @frapell

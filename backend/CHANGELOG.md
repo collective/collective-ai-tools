@@ -9,6 +9,15 @@
 
 <!-- towncrier release notes start -->
 
+## 1.3.0 (2026-08-03)
+
+
+### Bug fixes:
+
+- Do not fail an Assistant capability call with a `TypeError` when the model wraps its arguments (e.g. under `parameters`), invents extra ones, or double-encodes the JSON. @frapell 
+- Log a warning when a capability declares a permission Zope does not know, instead of quietly denying it to everyone but Managers. @frapell 
+- Offer the Assistant's capabilities to non-Manager users again: they declared ZCML permission ids (`zope2.View`) instead of permission titles (`View`), which `checkPermission` silently treats as Manager-only. @frapell 
+
 ## 1.2.0 (2026-07-31)
 
 
