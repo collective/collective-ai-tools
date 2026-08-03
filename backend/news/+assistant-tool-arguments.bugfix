@@ -1,0 +1,1 @@
+Do not fail an Assistant capability call with a `TypeError` when the model wraps its arguments (e.g. under `parameters`), invents extra ones, or double-encodes the JSON. @frapell

@@ -87,16 +87,20 @@ model* as a callable function. Each is a named utility providing
 capabilities/
 ├── base.py          ← AICapability base + get_capability / get_capabilities / manifest_for
 ├── search_site.py   ← search_site   (permission View; read-only catalog search)
-├── where_to_add.py  ← where_to_add  (permission cmf.ModifyPortalContent; suggest folders)
-├── propose_draft.py ← propose_draft (permission cmf.ModifyPortalContent; AI-drafts, proposes only)
+├── where_to_add.py  ← where_to_add  (permission "Modify portal content"; suggest folders)
+├── propose_draft.py ← propose_draft (permission "Modify portal content"; AI-drafts, proposes only)
 ├── types.py         ← resolve_portal_type + IContentTypeSynonyms extension point
 └── configure.zcml   ← one <utility provides=IAIAssistantCapability name=...> per capability
 ```
 
 `AICapability` ([`capabilities/base.py`](capabilities/base.py)) sets `name`,
 `description` (sent to the model), `parameters` (a JSON Schema for the call
-args), and `permission` (a Zope permission). It exposes `allowed_for(context)`
-(a real `checkPermission`), `tool_schema()` (the OpenAI function definition),
+args), and `permission` — a Zope permission **title** (`"View"`, `"Modify
+portal content"`; import the constants from `Products.CMFCore.permissions`),
+*not* the dotted ZCML id used in `configure.zcml`: `checkPermission` does not
+know ids and silently treats an unknown name as Manager-only. It exposes
+`allowed_for(context)` (a real `checkPermission`), `tool_schema()` (the
+OpenAI function definition),
 and `run(context, request, **kwargs)` returning a JSON-serializable result.
 
 ### Security model — read this before adding a capability

@@ -11,6 +11,7 @@ from collective.aitools import logger
 from collective.aitools.capabilities.base import AICapability
 from collective.aitools.capabilities.types import resolve_portal_type
 from plone import api
+from Products.CMFCore.permissions import ModifyPortalContent
 from typing import ClassVar
 
 
@@ -58,7 +59,7 @@ class WhereToAddCapability(AICapability):
         "required": ["portal_type"],
     }
     # Only editors: they must be able to modify content to act on the answer.
-    permission = "cmf.ModifyPortalContent"
+    permission = ModifyPortalContent
 
     def run(self, context, request, portal_type="", keyword=""):
         if not (portal_type or "").strip():

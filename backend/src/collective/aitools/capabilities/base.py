@@ -7,11 +7,35 @@ utilities. See :class:`collective.aitools.interfaces.IAIAssistantCapability`.
 """
 
 from AccessControl import getSecurityManager
+from AccessControl.Permission import getPermissions
+from collective.aitools import logger
 from collective.aitools.interfaces import IAIAssistantCapability
+from Products.CMFCore.permissions import View
 from typing import ClassVar
 from zope.component import getUtilitiesFor
 from zope.component import queryUtility
 from zope.interface import implementer
+
+
+def _check_permission(permission, context, capability=""):
+    """Check ``permission`` on ``context`` for the current user.
+
+    ``getSecurityManager().checkPermission`` takes a Zope permission *title* —
+    ``"View"``, ``"Modify portal content"`` — not the dotted ZCML id used in
+    ``configure.zcml`` (``zope2.View``, ``cmf.ModifyPortalContent``). Handing it
+    an unregistered name is not an error: it falls back to the default
+    ``('Manager',)`` roles, so the check quietly answers "no" for every ordinary
+    editor. Warn loudly rather than silently hiding a capability.
+    """
+    if permission not in {entry[0] for entry in getPermissions()}:
+        logger.warning(
+            "capability %r declares unknown permission %r; checkPermission only "
+            "understands permission titles (e.g. 'View', 'Modify portal "
+            "content'), so this will be treated as Manager-only.",
+            capability or "<unnamed>",
+            permission,
+        )
+    return bool(getSecurityManager().checkPermission(permission, context))
 
 
 def get_capabilities():
@@ -55,12 +79,13 @@ class AICapability:
     description = ""
     #: JSON Schema for the arguments. Default: a no-argument object.
     parameters: ClassVar[dict] = {"type": "object", "properties": {}}
-    #: Zope permission required on the context. ``zope2.View`` means "any
-    #: authenticated (or anonymous) user who can see the context".
-    permission = "zope2.View"
+    #: Zope permission required on the context, as a permission *title* (see
+    #: :func:`_check_permission`). ``View`` means "any user, authenticated or
+    #: not, who can see the context".
+    permission = View
 
     def allowed_for(self, context):
-        return bool(getSecurityManager().checkPermission(self.permission, context))
+        return _check_permission(self.permission, context, capability=self.name)
 
     def tool_schema(self):
         return {

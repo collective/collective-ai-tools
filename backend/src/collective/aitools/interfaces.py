@@ -137,7 +137,9 @@ class IAIAssistantCapability(Interface):
     )
     permission = Attribute(
         "Zope permission the current user must hold on the context for this "
-        "capability to be offered and run."
+        "capability to be offered and run. A permission *title* ('View', "
+        "'Modify portal content'), not the dotted ZCML id: "
+        "``checkPermission`` only understands titles."
     )
 
     def allowed_for(context):

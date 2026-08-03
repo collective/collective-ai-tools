@@ -25,6 +25,7 @@ from collective.aitools.capabilities.types import resolve_portal_type
 from collective.aitools.tools import get_tool
 from plone import api
 from plone.dexterity.utils import iterSchemataForType
+from Products.CMFCore.permissions import ModifyPortalContent
 from pydantic import BaseModel
 from pydantic import Field
 from typing import ClassVar
@@ -260,7 +261,7 @@ class ProposeDraftCapability(AICapability):
         },
         "required": ["container_path", "portal_type", "brief"],
     }
-    permission = "cmf.ModifyPortalContent"
+    permission = ModifyPortalContent
 
     def run(
         self,

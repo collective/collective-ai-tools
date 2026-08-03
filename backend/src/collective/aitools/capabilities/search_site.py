@@ -8,6 +8,7 @@ anonymous visitor never sees private content in the results.
 from collective.aitools import _
 from collective.aitools.capabilities.base import AICapability
 from plone import api
+from Products.CMFCore.permissions import View
 from typing import ClassVar
 
 
@@ -42,7 +43,7 @@ class SearchSiteCapability(AICapability):
         "required": ["query"],
     }
     # Anyone who can view the context; catalog ACL does the real filtering.
-    permission = "zope2.View"
+    permission = View
 
     def run(self, context, request, query="", limit=5):
         query = (query or "").strip()

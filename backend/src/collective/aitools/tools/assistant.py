@@ -24,6 +24,56 @@ import json
 MAX_STEPS = 6
 
 
+def _parse_arguments(raw):
+    """Decode a tool call's ``arguments`` into a dict, tolerantly.
+
+    The wire format is a JSON *string*, but some providers double-encode it (a
+    JSON string containing JSON), so decode twice when the first pass yields a
+    string. Anything that isn't a mapping in the end becomes ``{}``.
+    """
+    for _attempt in range(2):
+        if isinstance(raw, dict):
+            return raw
+        if not isinstance(raw, str):
+            return {}
+        try:
+            raw = json.loads(raw or "{}")
+        except (TypeError, ValueError):
+            return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _coerce_arguments(capability, arguments):
+    """Normalize model-supplied arguments into kwargs ``capability.run`` accepts.
+
+    Models sometimes echo the schema instead of filling it — nesting the real
+    values under a wrapper key such as ``parameters`` — or invent arguments that
+    are not in the schema at all. Either one raises ``TypeError`` when splatted
+    into :meth:`run`, which burns a step and tells the model nothing useful, so:
+    unwrap a single nesting level when nothing at the top matches the schema,
+    then keep only declared properties.
+
+    Returns ``(kwargs, dropped)``, ``dropped`` being the discarded keys.
+    """
+    if not isinstance(arguments, dict):
+        return {}, []
+
+    properties = (getattr(capability, "parameters", None) or {}).get("properties")
+    if not isinstance(properties, dict):
+        # Schema does not enumerate its arguments; nothing to filter against.
+        return dict(arguments), []
+    declared = set(properties)
+
+    # A lone unrecognized key holding a dict is a wrapper, not an argument.
+    if declared and len(arguments) == 1 and not declared.intersection(arguments):
+        (only,) = arguments.values()
+        if isinstance(only, dict):
+            arguments = only
+
+    kwargs = {key: value for key, value in arguments.items() if key in declared}
+    return kwargs, sorted(set(arguments) - declared)
+
+
 class AssistantTool(AITool):
     """Answer a user's message, optionally calling capabilities to ground it."""
 
@@ -50,8 +100,15 @@ class AssistantTool(AITool):
         # Defense in depth: never trust that the manifest alone gated this.
         if not capability.allowed_for(context):
             return {"error": f"not permitted to use {name!r}"}
+        kwargs, dropped = _coerce_arguments(capability, arguments)
+        if dropped:
+            logger.info(
+                "assistant: capability %r called with unknown arguments %s; ignored",
+                name,
+                dropped,
+            )
         try:
-            return capability.run(context, request, **(arguments or {}))
+            return capability.run(context, request, **kwargs)
         except Exception as exc:
             logger.exception("assistant: capability %r failed", name)
             return {"error": str(exc)}
@@ -98,10 +155,7 @@ class AssistantTool(AITool):
             for call in tool_calls:
                 fn = call.get("function") or {}
                 name = fn.get("name") or ""
-                try:
-                    arguments = json.loads(fn.get("arguments") or "{}")
-                except (TypeError, ValueError):
-                    arguments = {}
+                arguments = _parse_arguments(fn.get("arguments"))
                 result = self._run_capability(name, arguments, context, request)
                 steps.append({"capability": name, "arguments": arguments})
                 # A capability may propose a user-confirmed write action; surface
