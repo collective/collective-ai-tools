@@ -25,12 +25,21 @@ class FakeAIService:
 
     def __init__(self):
         self.calls = []
+        #: ``(id, text)`` pairs to answer with when asked for structured
+        #: per-segment output. Empty means "nothing to change".
+        self.corrections = []
 
     def chat(self, prompt, model=None, system=None, output_type=None, **kw):
         self.calls.append(("chat", prompt, model, system, kw))
-        if output_type is not None:
-            return output_type(tags=["alpha", "beta", "gamma", "delta", "epsilon"])
-        return "FAKE TEXT"
+        if output_type is None:
+            return "FAKE TEXT"
+        if "corrections" in output_type.model_fields:
+            return output_type(
+                corrections=[
+                    {"id": index, "text": text} for index, text in self.corrections
+                ]
+            )
+        return output_type(tags=["alpha", "beta", "gamma", "delta", "epsilon"])
 
     def analyze_image(self, prompt, image, model=None, output_type=None, **kw):
         self.calls.append(("analyze_image", prompt, image, model, kw))
@@ -127,6 +136,168 @@ class TestHelpMeWrite:
         api.portal.set_registry_record(ENABLED.format("help_me_write"), True)
         with pytest.raises(ValueError):
             get_tool("help_me_write").run(operation="bogus", text="x")
+
+
+class TestHelpMeWriteModes:
+    """Each operation declares how its answer is meant to be applied."""
+
+    def test_modes(self):
+        from collective.aitools.tools.help_me_write import operation_mode
+
+        assert operation_mode("draft") == "draft"
+        assert operation_mode("grammar") == "correct"
+        assert operation_mode("professional") == "rewrite"
+        assert operation_mode("casual") == "rewrite"
+
+
+class TestHelpMeWritePrompts:
+    """What each mode is told about the markup it is allowed to produce."""
+
+    def test_draft_is_always_composed_as_html(self):
+        from collective.aitools.tools.help_me_write import system_prompt
+
+        prompt = system_prompt("draft")
+        assert "HTML fragment" in prompt
+        # The palette is offered whether or not there was HTML on the way in.
+        assert '<table class="listing">' in prompt
+        assert system_prompt("draft", html=True) == prompt
+
+    def test_rewrite_with_html_gets_the_palette(self):
+        from collective.aitools.tools.help_me_write import system_prompt
+
+        prompt = system_prompt("professional", html=True)
+        assert "Changing the structure is expected" in prompt
+        assert "<h2> to <h6> for sections" in prompt
+        assert "No <script> or <style>" in prompt
+
+    def test_rewrite_without_html_is_left_plain(self):
+        from collective.aitools.tools.help_me_write import OPERATIONS
+        from collective.aitools.tools.help_me_write import system_prompt
+
+        assert system_prompt("casual") == OPERATIONS["casual"]
+
+    def test_correcting_html_is_told_to_preserve_it(self):
+        from collective.aitools.tools.help_me_write import system_prompt
+
+        prompt = system_prompt("grammar", html=True)
+        assert "the markup is not yours to change" in prompt
+        # A correction must not be offered new formatting to reach for.
+        assert "at your disposal" not in prompt
+        assert "Changing the structure is expected" not in prompt
+
+
+class TestHelpMeWriteHtml:
+    """The rewrite path: tone changes get HTML and may restructure it."""
+
+    def _enable(self):
+        api.portal.set_registry_record(ENABLED.format("help_me_write"), True)
+        return get_tool("help_me_write")
+
+    def test_html_input_asks_for_html_back(self, portal, fake_service):
+        tool = self._enable()
+        out = tool.run(operation="professional", html="<p>hi there</p>")
+        assert out == "FAKE TEXT"
+        _kind, prompt, _model, system, _kw = fake_service.calls[0]
+        assert prompt == "<p>hi there</p>"
+        assert "return an HTML fragment" in system
+        # It is a rewrite, not a patch: restructuring is explicitly allowed.
+        assert "Changing the structure is expected" in system
+
+    def test_plain_text_input_is_unchanged(self, portal, fake_service):
+        tool = self._enable()
+        tool.run(operation="professional", text="hi there")
+        _kind, prompt, _model, system, _kw = fake_service.calls[0]
+        assert prompt == "hi there"
+        assert "HTML" not in system
+
+    def test_html_wins_over_text(self, portal, fake_service):
+        tool = self._enable()
+        tool.run(operation="casual", text="ignored", html="<p>used</p>")
+        assert fake_service.calls[0][1] == "<p>used</p>"
+
+    def test_empty_html_returns_none(self, portal, fake_service):
+        tool = self._enable()
+        assert tool.run(operation="professional", html="   ") is None
+        assert fake_service.calls == []
+
+
+class TestHelpMeWriteSegments:
+    """The correct path: each segment is rewritten in place, so the caller can
+    put the answer back without touching the markup around it."""
+
+    def _enable(self):
+        api.portal.set_registry_record(ENABLED.format("help_me_write"), True)
+        return get_tool("help_me_write")
+
+    def test_sends_numbered_segments_without_their_padding(self, portal, fake_service):
+        tool = self._enable()
+        tool.run_segments(operation="grammar", segments=["Helo ", "wrold", " here"])
+        assert fake_service.calls[0][1] == "[0] Helo\n[1] wrold\n[2] here"
+
+    def test_segment_protocol_is_appended_to_the_operation_prompt(
+        self, portal, fake_service
+    ):
+        tool = self._enable()
+        tool.run_segments(operation="grammar", segments=["x"])
+        system = fake_service.calls[0][3]
+        assert "copy editor" in system
+        assert "Never move, merge, split or reorder text between segments" in system
+        # Segments are plain text, so there is no markup to talk about and no
+        # formatting to offer — the model must only fix wording.
+        assert "at your disposal" not in system
+        assert "HTML" not in system
+
+    def test_restores_the_segment_s_own_whitespace(self, portal, fake_service):
+        tool = self._enable()
+        fake_service.corrections = [(0, "Hello"), (2, "there")]
+        out = tool.run_segments(
+            operation="grammar", segments=["Helo ", "wrold", " here"]
+        )
+        # The padding we held back is put back around the model's text.
+        assert out == {0: "Hello ", 2: " there"}
+
+    def test_blank_segments_are_not_sent_but_keep_their_index(
+        self, portal, fake_service
+    ):
+        tool = self._enable()
+        fake_service.corrections = [(2, "Fixed")]
+        out = tool.run_segments(operation="grammar", segments=["", "   ", "Fixd"])
+        assert fake_service.calls[0][1] == "[2] Fixd"
+        assert out == {2: "Fixed"}
+
+    def test_unknown_and_repeated_ids_are_dropped(self, portal, fake_service):
+        tool = self._enable()
+        fake_service.corrections = [(9, "nope"), (0, "Hello"), (0, "again")]
+        out = tool.run_segments(operation="grammar", segments=["Helo"])
+        assert out == {0: "Hello"}
+
+    def test_unchanged_and_emptied_segments_are_dropped(self, portal, fake_service):
+        tool = self._enable()
+        fake_service.corrections = [(0, "Helo"), (1, "   ")]
+        out = tool.run_segments(operation="grammar", segments=["Helo", "wrold"])
+        assert out == {}
+
+    def test_disabled_returns_none(self, portal, fake_service):
+        out = get_tool("help_me_write").run_segments(
+            operation="grammar", segments=["x"]
+        )
+        assert out is None
+        assert fake_service.calls == []
+
+    def test_all_blank_returns_none(self, portal, fake_service):
+        tool = self._enable()
+        assert tool.run_segments(operation="grammar", segments=["", "  "]) is None
+        assert fake_service.calls == []
+
+    def test_draft_raises(self, portal, fake_service):
+        tool = self._enable()
+        with pytest.raises(ValueError):
+            tool.run_segments(operation="draft", segments=["x"])
+
+    def test_unknown_operation_raises(self, portal, fake_service):
+        tool = self._enable()
+        with pytest.raises(ValueError):
+            tool.run_segments(operation="bogus", segments=["x"])
 
 
 class TestRecognizeImage:

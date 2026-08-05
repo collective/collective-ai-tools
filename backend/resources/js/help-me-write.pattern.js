@@ -2,11 +2,26 @@
  * "Help me write" — classic-UI TinyMCE integration (Patternslib pattern).
  *
  * Adds a "Help me write" button above every TinyMCE rich-text editor on
- * edit/add forms. The button opens a menu of writing operations. "draft"
- * (and any operation flagged needsInput) shows an input + Send; the result is
- * inserted at the cursor. The other operations transform the selected text
- * (or the whole field when nothing is selected) and replace it in place,
- * leaving non-text nodes (images, etc.) untouched.
+ * edit/add forms. The button opens a menu of writing operations, and each one
+ * carries the `mode` that says what to send and how to apply the answer. The
+ * operations work on the selection, or on the whole field when nothing is
+ * selected.
+ *
+ * - "draft" shows an input + Send and inserts the result at the cursor.
+ *
+ * - "correct" (grammar) only fixes the wording, so it must not disturb the
+ *   markup. The selection is split into the text nodes it covers and sent as
+ *   `segments`; the backend answers with `corrections`, only the segments it
+ *   changed, each keyed by its index. Every correction is written straight into
+ *   the text node it came from, so inline formatting keeps its own text and
+ *   non-text nodes (images, etc.) are untouched. Sending one concatenated string
+ *   instead would leave no way to put the answer back without emptying the
+ *   inline elements the selection spanned.
+ *
+ * - "rewrite" (the tone changes) is *supposed* to restructure the passage —
+ *   resplitting paragraphs, moving emphasis — so per-node patching is the wrong
+ *   tool: it gets the selection as `html`, and the fragment it returns replaces
+ *   the selection through TinyMCE, which parses and sanitizes it on the way in.
  *
  * Editors are discovered through the global TinyMCE registry
  * (`window.tinymce.editors` + the AddEditor/init events) rather than by
@@ -39,6 +54,12 @@ function setup(CONFIG) {
         return div.innerHTML;
     }
 
+    function looksLikeHtml(text) {
+        return /<[a-z][^>]*>/i.test(text);
+    }
+
+    // Fallback for a model that ignored the "return an HTML fragment"
+    // instruction and sent plain text: keep its paragraph breaks at least.
     function textToHtml(text) {
         return escapeHtml(text)
             .split(/\n{2,}/)
@@ -62,6 +83,16 @@ function setup(CONFIG) {
         );
     }
 
+    // Text that is quoted verbatim must not be "corrected", so skip it here
+    // rather than asking the model to leave it alone — the walker knows which
+    // element a text node lives in, the model only sees the text.
+    const VERBATIM = "code,pre,kbd,samp,script,style";
+
+    function isVerbatim(node) {
+        const parent = node.parentNode;
+        return !!(parent && parent.closest && parent.closest(VERBATIM));
+    }
+
     // Collect the text nodes (with clipped offsets) covered by the range.
     function collectTextParts(editor, range) {
         const doc = editor.getDoc();
@@ -71,6 +102,9 @@ function setup(CONFIG) {
         let node;
         while ((node = walker.nextNode())) {
             if (!rangeIntersectsNode(range, node)) {
+                continue;
+            }
+            if (isVerbatim(node)) {
                 continue;
             }
             let start = 0;
@@ -88,6 +122,10 @@ function setup(CONFIG) {
         return parts;
     }
 
+    function partText(p) {
+        return p.node.nodeValue.slice(p.start, p.end);
+    }
+
     function getSelectionParts(editor) {
         let range = editor.selection.getRng();
         if (range.collapsed) {
@@ -96,28 +134,35 @@ function setup(CONFIG) {
             range.selectNodeContents(editor.getBody());
         }
         const parts = collectTextParts(editor, range);
-        const text = parts
-            .map(function (p) {
-                return p.node.nodeValue.slice(p.start, p.end);
-            })
-            .join("");
-        return { parts: parts, text: text };
+        return { parts: parts, segments: parts.map(partText) };
     }
 
-    function applyReplacement(editor, info, result) {
+    /* Write the changed segments back, each into its own text node.
+     *
+     * `corrections` is the backend's list of {id, text}, where `id` indexes
+     * info.parts. Segments the model left alone are simply absent, so their
+     * nodes are never written to at all. Each node appears in `parts` at most
+     * once (the walker yields it once), so the clipped offsets stay valid.
+     *
+     * Returns the number of segments actually changed. */
+    function applyCorrections(editor, info, corrections) {
         const parts = info.parts;
-        if (!parts.length) {
-            return;
+        const pending = [];
+        (corrections || []).forEach(function (correction) {
+            const p = correction && parts[correction.id];
+            if (p && typeof correction.text === "string") {
+                pending.push({ part: p, text: correction.text });
+            }
+        });
+        if (!pending.length) {
+            return 0;
         }
         editor.undoManager.transact(function () {
-            parts.forEach(function (p, idx) {
+            pending.forEach(function (item) {
+                const p = item.part;
                 const value = p.node.nodeValue;
-                const before = value.slice(0, p.start);
-                const after = value.slice(p.end);
-                // The full result goes into the first text node; the remaining
-                // selected text nodes are emptied. Non-text nodes are untouched.
-                const replacement = idx === 0 ? result : "";
-                p.node.nodeValue = before + replacement + after;
+                p.node.nodeValue =
+                    value.slice(0, p.start) + item.text + value.slice(p.end);
             });
         });
         editor.fire("change");
@@ -125,12 +170,64 @@ function setup(CONFIG) {
             editor.save();
         }
         editor.setDirty(true);
+        return pending.length;
+    }
+
+    /* ---- rewrite: replace the selection with the returned fragment ---- */
+
+    /* Grab what a rewrite should work on.
+     *
+     * With nothing selected the whole field is the target. With a real selection
+     * we also take a bookmark: the answer arrives after an await, by which time
+     * focus has been on our button and the selection may be gone, so it has to
+     * be restored before we can replace it. */
+    function getRewriteTarget(editor) {
+        if (editor.selection.getRng().collapsed) {
+            return {
+                whole: true,
+                html: editor.getContent({ format: "html" }),
+                // For "is there anything to work on?" — an empty field still
+                // serializes to something like "<p></p>".
+                text: editor.getBody().textContent || "",
+            };
+        }
+        return {
+            whole: false,
+            html: editor.selection.getContent({ format: "html" }),
+            text: editor.selection.getContent({ format: "text" }) || "",
+            bookmark: editor.selection.getBookmark(2, true),
+        };
+    }
+
+    function applyRewrite(editor, target, html) {
+        if (!html) {
+            return 0;
+        }
+        editor.undoManager.transact(function () {
+            if (target.whole) {
+                editor.setContent(html);
+            } else {
+                editor.focus();
+                editor.selection.moveToBookmark(target.bookmark);
+                editor.selection.setContent(html);
+            }
+        });
+        editor.fire("change");
+        if (editor.save) {
+            editor.save();
+        }
+        editor.setDirty(true);
+        return 1;
     }
 
     function insertAtCursor(editor, result) {
         editor.focus();
         editor.undoManager.transact(function () {
-            editor.insertContent(textToHtml(result));
+            // A draft arrives as an HTML fragment — headings, lists, tables —
+            // so insert it as-is and let TinyMCE parse and sanitize it.
+            editor.insertContent(
+                looksLikeHtml(result) ? result : textToHtml(result)
+            );
         });
         editor.fire("change");
         if (editor.save) {
@@ -190,7 +287,7 @@ function setup(CONFIG) {
         const payload = { operation: op.id };
         let info = null;
 
-        if (op.needsInput) {
+        if (op.mode === "draft") {
             const topic = (inputValue || "").trim();
             if (!topic) {
                 setStatus(bar, "error", L.noText || "Enter some text first.");
@@ -202,12 +299,21 @@ function setup(CONFIG) {
                 setStatus(bar, "error", L.error || "Editor not ready.");
                 return;
             }
-            info = getSelectionParts(editor);
-            if (!info.text.trim()) {
-                setStatus(bar, "error", L.noText || "Select some text first.");
-                return;
+            if (op.mode === "correct") {
+                info = getSelectionParts(editor);
+                if (!info.segments.join("").trim()) {
+                    setStatus(bar, "error", L.noText || "Select some text first.");
+                    return;
+                }
+                payload.segments = info.segments;
+            } else {
+                info = getRewriteTarget(editor);
+                if (!info.text.trim()) {
+                    setStatus(bar, "error", L.noText || "Select some text first.");
+                    return;
+                }
+                payload.html = info.html;
             }
-            payload.text = info.text;
         }
 
         setBusy(bar, true);
@@ -239,15 +345,23 @@ function setup(CONFIG) {
                     });
             })
             .then(function (data) {
-                const result = (data && data.result) || "";
-                if (op.needsInput) {
-                    insertAtCursor(editor, result);
+                let changed = 1;
+                if (op.mode === "draft") {
+                    insertAtCursor(editor, (data && data.result) || "");
+                } else if (op.mode === "correct") {
+                    changed = applyCorrections(editor, info, data && data.corrections);
                 } else {
-                    applyReplacement(editor, info, result);
+                    changed = applyRewrite(editor, info, (data && data.result) || "");
                 }
                 setBusy(bar, false);
-                clearStatus(bar);
-                closeMenu(bar);
+                if (changed) {
+                    clearStatus(bar);
+                    closeMenu(bar);
+                } else {
+                    // The model read the text and had nothing to change; say so
+                    // instead of silently looking like the button did nothing.
+                    setStatus(bar, "info", L.noChanges || "No changes suggested.");
+                }
             })
             .catch(function (err) {
                 setBusy(bar, false);
@@ -294,7 +408,7 @@ function setup(CONFIG) {
         if (menu) {
             menu.hidden = true;
         }
-        if (op.needsInput) {
+        if (op.mode === "draft") {
             showInputRow(op, editor, bar);
         } else {
             runOperation(op, editor, bar, null);

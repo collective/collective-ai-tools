@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2026-07-01 18:25+0000\n"
+"POT-Creation-Date: 2026-08-05 12:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI +ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -13,6 +13,10 @@ msgstr ""
 "Language-Name: English\n"
 "Preferred-Encodings: utf-8 latin1\n"
 "Domain: DOMAIN\n"
+
+#: collective/aitools/tools/assistant.py:82
+msgid "A site chat assistant that can search the site and guide editors, calling the enabled capabilities to ground its answers."
+msgstr ""
 
 #: collective/aitools/controlpanels/ai_tools.py:32
 msgid "AI Tools"
@@ -27,12 +31,33 @@ msgstr ""
 msgid "Added tags."
 msgstr ""
 
-#: collective/aitools/browser/recognize_image.py:51
+#: collective/aitools/browser/recognize_image.py:52
 msgid "Analyzing image..."
 msgstr ""
 
-#: collective/aitools/browser/recognize_image.py:53
+#: collective/aitools/browser/assistant.py:62
+msgid "Ask me anything about this site…"
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:58
+#: collective/aitools/tools/assistant.py:81
+msgid "Assistant"
+msgstr ""
+
+#: collective/aitools/interfaces.py:301
+msgid "Assistant: model"
+msgstr ""
+
+#: collective/aitools/interfaces.py:310
+msgid "Assistant: prompt"
+msgstr ""
+
+#: collective/aitools/browser/recognize_image.py:54
 msgid "Choose an image first."
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:60
+msgid "Close"
 msgstr ""
 
 #: collective/aitools/profiles.zcml:22
@@ -47,27 +72,43 @@ msgstr ""
 msgid "Collective AI Tools: Uninstall"
 msgstr ""
 
-#: collective/aitools/browser/recognize_image.py:55
+#: collective/aitools/browser/recognize_image.py:56
 msgid "Could not read the selected image."
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:66
+msgid "Create draft"
 msgstr ""
 
 #: collective/aitools/profiles.zcml:22
 msgid "Create example content to showcase this addon."
 msgstr ""
 
-#: collective/aitools/interfaces.py:129
+#: collective/aitools/browser/assistant.py:67
+msgid "Creating…"
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:68
+msgid "Draft created:"
+msgstr ""
+
+#: collective/aitools/interfaces.py:292
+msgid "Enable \"Assistant\""
+msgstr ""
+
+#: collective/aitools/interfaces.py:220
 msgid "Enable \"Help me write\""
 msgstr ""
 
-#: collective/aitools/interfaces.py:103
+#: collective/aitools/interfaces.py:194
 msgid "Enable \"Recognize image\""
 msgstr ""
 
-#: collective/aitools/interfaces.py:175
+#: collective/aitools/interfaces.py:266
 msgid "Enable \"Suggest tags\""
 msgstr ""
 
-#: collective/aitools/interfaces.py:149
+#: collective/aitools/interfaces.py:240
 msgid "Enable \"Summarize\""
 msgstr ""
 
@@ -79,16 +120,16 @@ msgstr ""
 msgid "Filled in the description."
 msgstr ""
 
-#: collective/aitools/browser/recognize_image.py:54
+#: collective/aitools/browser/recognize_image.py:55
 msgid "Filled in the empty fields."
 msgstr ""
 
-#: collective/aitools/interfaces.py:150
+#: collective/aitools/interfaces.py:241
 #: collective/aitools/tools/summarize.py:15
 msgid "Generate a concise description/summary of an item from its text content (also usable as the SEO meta description)."
 msgstr ""
 
-#: collective/aitools/interfaces.py:104
+#: collective/aitools/interfaces.py:195
 msgid "Generate a textual description of an item's image using a vision-capable model."
 msgstr ""
 
@@ -96,87 +137,124 @@ msgstr ""
 msgid "Generate a title, description and tags for an item's image using a vision-capable model."
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:65
+#: collective/aitools/browser/help_me_write.py:76
 msgid "Generating..."
 msgstr ""
 
-#: collective/aitools/browser/recognize_image.py:50
+#: collective/aitools/browser/recognize_image.py:51
 msgid "Get image details"
 msgstr ""
 
-#: collective/aitools/tools/help_me_write.py:36
+#: collective/aitools/capabilities/where_to_add.py:34
+msgid "Given the type of content the editor wants to create, suggest folders where that type can be added. Returns candidate containers with their title and URL. Use this to answer 'where should I put …' questions. This only suggests a location; it does not create anything."
+msgstr ""
+
+#: collective/aitools/tools/help_me_write.py:175
 msgid "Grammar check"
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:63
-#: collective/aitools/tools/help_me_write.py:55
+#: collective/aitools/browser/help_me_write.py:74
+#: collective/aitools/tools/help_me_write.py:245
 msgid "Help me write"
 msgstr ""
 
-#: collective/aitools/interfaces.py:138
+#: collective/aitools/interfaces.py:229
 msgid "Help me write: model"
 msgstr ""
 
-#: collective/aitools/interfaces.py:168
+#: collective/aitools/interfaces.py:259
 msgid "Instruction sent to the model."
 msgstr ""
 
-#: collective/aitools/interfaces.py:122
+#: collective/aitools/interfaces.py:213
 msgid "Instruction sent to the vision model."
 msgstr ""
 
-#: collective/aitools/interfaces.py:139
+#: collective/aitools/interfaces.py:230
 msgid "Model name to use. Leave empty to let collective.aisettings pick a completion-capable model."
 msgstr ""
 
-#: collective/aitools/interfaces.py:113
+#: collective/aitools/interfaces.py:302
+msgid "Model name to use. Leave empty to let collective.aisettings pick a tool-calling-capable model."
+msgstr ""
+
+#: collective/aitools/interfaces.py:204
 msgid "Model name to use. Leave empty to let collective.aisettings pick a vision-capable model."
 msgstr ""
 
-#: collective/aitools/interfaces.py:130
-#: collective/aitools/tools/help_me_write.py:56
+#: collective/aitools/browser/help_me_write.py:79
+msgid "No changes suggested."
+msgstr ""
+
+#: collective/aitools/interfaces.py:293
+msgid "Offer a site chat assistant that can search the site and guide editors, calling the enabled capabilities to ground its answers."
+msgstr ""
+
+#: collective/aitools/interfaces.py:221
+#: collective/aitools/tools/help_me_write.py:246
 msgid "Offer editors drafting and rewriting assistance (start a draft, grammar check, change tone, …)."
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:69
+msgid "Open"
+msgstr ""
+
+#: collective/aitools/browser/assistant.py:59
+msgid "Open the assistant"
+msgstr ""
+
+#: collective/aitools/capabilities/propose_draft.py:208
+msgid "Propose creating a new draft content item for the editor to confirm. The editor only needs to give a rough 'brief' of what the item should be about — its title, description and body are AI-generated from that brief as an editable starting point. Provide the target folder path and the content type; pass explicit title/description/body only to override the generated ones. This does NOT create anything on its own; it returns a proposal the user must confirm. Use 'where_to_add' first if you are unsure of a valid folder."
 msgstr ""
 
 #: collective/aitools/tools/recognize_image.py:81
 msgid "Recognize image"
 msgstr ""
 
-#: collective/aitools/interfaces.py:112
+#: collective/aitools/interfaces.py:203
 msgid "Recognize image: model"
 msgstr ""
 
-#: collective/aitools/interfaces.py:121
+#: collective/aitools/interfaces.py:212
 msgid "Recognize image: prompt"
 msgstr ""
 
-#: collective/aitools/tools/help_me_write.py:38
+#: collective/aitools/tools/help_me_write.py:177
 msgid "Rewrite in a casual tone"
 msgstr ""
 
-#: collective/aitools/tools/help_me_write.py:37
+#: collective/aitools/tools/help_me_write.py:176
 msgid "Rewrite in a professional tone"
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:67
+#: collective/aitools/capabilities/search_site.py:23
+msgid "Search the website for content matching a free-text query. Returns matching items with their title, URL, type and short description. Use this to find existing pages or to answer 'where do I find …' questions."
+msgstr ""
+
+#: collective/aitools/browser/help_me_write.py:78
 msgid "Select or enter some text first."
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:64
+#: collective/aitools/browser/assistant.py:63
+#: collective/aitools/browser/help_me_write.py:75
 msgid "Send"
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:66
-#: collective/aitools/browser/recognize_image.py:52
-#: collective/aitools/browser/suggest_tags.py:48
+#: collective/aitools/browser/assistant.py:65
+#: collective/aitools/browser/help_me_write.py:77
+#: collective/aitools/browser/recognize_image.py:53
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: collective/aitools/tools/help_me_write.py:35
+#: collective/aitools/tools/help_me_write.py:174
 msgid "Start a draft"
 msgstr ""
 
-#: collective/aitools/interfaces.py:176
+#: collective/aitools/browser/assistant.py:61
+msgid "Start new chat"
+msgstr ""
+
+#: collective/aitools/interfaces.py:267
 #: collective/aitools/tools/suggest_tags.py:50
 msgid "Suggest Subject keywords for an item from its text content, reusing tags already in use on the site where possible."
 msgstr ""
@@ -186,11 +264,11 @@ msgstr ""
 msgid "Suggest tags"
 msgstr ""
 
-#: collective/aitools/interfaces.py:184
+#: collective/aitools/interfaces.py:275
 msgid "Suggest tags: model"
 msgstr ""
 
-#: collective/aitools/interfaces.py:193
+#: collective/aitools/interfaces.py:284
 msgid "Suggest tags: prompt"
 msgstr ""
 
@@ -203,16 +281,20 @@ msgstr ""
 msgid "Summarize"
 msgstr ""
 
-#: collective/aitools/interfaces.py:158
+#: collective/aitools/interfaces.py:249
 msgid "Summarize: model"
 msgstr ""
 
-#: collective/aitools/interfaces.py:167
+#: collective/aitools/interfaces.py:258
 msgid "Summarize: prompt"
 msgstr ""
 
 #: collective/aitools/browser/summarize.py:47
 msgid "Summarizing..."
+msgstr ""
+
+#: collective/aitools/interfaces.py:311
+msgid "System prompt steering the assistant."
 msgstr ""
 
 #: collective/aitools/browser/suggest_tags.py:51
@@ -223,6 +305,10 @@ msgstr ""
 msgid "The description already has a value."
 msgstr ""
 
+#: collective/aitools/browser/assistant.py:64
+msgid "Thinking…"
+msgstr ""
+
 #: collective/aitools/profiles.zcml:13
 msgid "This package provides tools powered by AI, both for editors as for anonymous visitors"
 msgstr ""
@@ -231,6 +317,6 @@ msgstr ""
 msgid "Uninstall Collective AI Tools setup."
 msgstr ""
 
-#: collective/aitools/browser/help_me_write.py:68
+#: collective/aitools/browser/help_me_write.py:80
 msgid "What do you want to write about?"
 msgstr ""

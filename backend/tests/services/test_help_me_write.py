@@ -18,10 +18,21 @@ ENABLED = "collective.aitools.interfaces.IAIToolsSettings.help_me_write_enabled"
 class FakeAIService:
     def __init__(self, return_value="FAKE TEXT"):
         self.return_value = return_value
+        #: ``(id, text)`` pairs to answer with when asked for structured
+        #: per-segment output. Empty means "nothing to change".
+        self.corrections = []
         self.calls = []
 
-    def chat(self, prompt, model=None, system=None, **kw):
+    def chat(self, prompt, model=None, system=None, output_type=None, **kw):
         self.calls.append((prompt, model, system))
+        if output_type is not None:
+            if self.return_value is None:
+                return None
+            return output_type(
+                corrections=[
+                    {"id": index, "text": text} for index, text in self.corrections
+                ]
+            )
         return self.return_value
 
 
@@ -90,5 +101,72 @@ class TestHelpMeWriteEndpoint:
         api.portal.set_registry_record(ENABLED, True)
         fake_service.return_value = None
         result, status = _reply(portal, {"operation": "grammar", "text": "hi"})
+        assert status == 502
+        assert "error" in result
+
+
+class TestHelpMeWriteHtml:
+    def test_html_rewrite_returns_a_fragment(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        fake_service.return_value = "<p>Good day.</p>"
+        result, status = _reply(
+            portal, {"operation": "professional", "html": "<p>hi there</p>"}
+        )
+        assert status == 200
+        assert result == {"result": "<p>Good day.</p>"}
+        assert fake_service.calls[0][0] == "<p>hi there</p>"
+        assert "return an HTML fragment" in fake_service.calls[0][2]
+
+    def test_html_rejected_for_draft(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        result, status = _reply(portal, {"operation": "draft", "html": "<p>x</p>"})
+        assert status == 400
+        assert "error" in result
+
+
+class TestHelpMeWriteSegments:
+    def test_returns_only_changed_segments(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        fake_service.corrections = [(1, "world")]
+        result, status = _reply(
+            portal,
+            {"operation": "grammar", "segments": ["Helo ", "wrold", " here"]},
+        )
+        assert status == 200
+        assert result == {"corrections": [{"id": 1, "text": "world"}]}
+
+    def test_segments_are_sent_numbered(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        _reply(portal, {"operation": "grammar", "segments": ["Helo ", "wrold"]})
+        assert fake_service.calls[0][0] == "[0] Helo\n[1] wrold"
+
+    def test_nothing_to_change_is_an_empty_list(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        fake_service.corrections = []
+        result, status = _reply(
+            portal, {"operation": "grammar", "segments": ["All fine here."]}
+        )
+        assert status == 200
+        assert result == {"corrections": []}
+
+    def test_segments_must_be_a_list_of_strings(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        result, status = _reply(portal, {"operation": "grammar", "segments": "nope"})
+        assert status == 400
+        assert "error" in result
+        result, status = _reply(portal, {"operation": "grammar", "segments": [1, 2]})
+        assert status == 400
+        assert "error" in result
+
+    def test_segments_rejected_for_draft(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        result, status = _reply(portal, {"operation": "draft", "segments": ["x"]})
+        assert status == 400
+        assert "error" in result
+
+    def test_no_model_is_bad_gateway(self, portal, fake_service):
+        api.portal.set_registry_record(ENABLED, True)
+        fake_service.return_value = None
+        result, status = _reply(portal, {"operation": "grammar", "segments": ["hi"]})
         assert status == 502
         assert "error" in result

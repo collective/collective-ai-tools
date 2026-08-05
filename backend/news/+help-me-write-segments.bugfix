@@ -1,0 +1,2 @@
+Stop "Help me write" from emptying the inline elements a selection spans: grammar check now corrects
+the selection's text nodes one by one, while the tone rewrites exchange HTML and may restructure. @frapell

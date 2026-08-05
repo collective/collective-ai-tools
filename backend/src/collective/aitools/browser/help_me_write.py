@@ -7,13 +7,18 @@ input, and the translated UI strings) in its ``data-pat-aitools-help-me-write``
 attribute. The ``aitools`` bundle (built from ``resources/``) picks that up and
 builds the TinyMCE button. The bundle itself is loaded globally through the
 resource registry, so the viewlet no longer injects any script/CSS.
+
+Each operation carries its ``mode`` (see
+:func:`~collective.aitools.tools.help_me_write.operation_mode`), so the
+taxonomy of "typed input / correct in place / rewrite the selection" stays in
+Python and the pattern only has to dispatch on it.
 """
 
 from collective.aitools import _
 from collective.aitools.browser import mosaic_installed
 from collective.aitools.tools import get_tool
+from collective.aitools.tools.help_me_write import operation_mode
 from collective.aitools.tools.help_me_write import OPERATION_TITLES
-from collective.aitools.tools.help_me_write import OPERATIONS_REQUIRING_INPUT
 from plone.app.layout.viewlets.common import ViewletBase
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from zope.i18n import translate
@@ -50,7 +55,9 @@ class HelpMeWriteViewlet(ViewletBase):
             {
                 "id": op_id,
                 "label": translate(title, context=self.request),
-                "needsInput": op_id in OPERATIONS_REQUIRING_INPUT,
+                # How the pattern should send the field's text and apply the
+                # answer: "draft", "correct" or "rewrite".
+                "mode": operation_mode(op_id),
             }
             for op_id, title in OPERATION_TITLES.items()
         ]
@@ -69,6 +76,7 @@ class HelpMeWriteViewlet(ViewletBase):
                 "loading": t(_("Generating...")),
                 "error": t(_("Something went wrong. Please try again.")),
                 "noText": t(_("Select or enter some text first.")),
+                "noChanges": t(_("No changes suggested.")),
                 "draftPlaceholder": t(_("What do you want to write about?")),
             },
         })
