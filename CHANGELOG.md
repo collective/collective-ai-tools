@@ -7,6 +7,30 @@
 -->
 
 <!-- towncrier release notes start -->
+## 1.3.1 (2026-08-05)
+
+### Backend
+
+
+#### Bug fixes:
+
+- Stop "Help me write" from emptying the inline elements a selection spans: grammar check now corrects
+  the selection's text nodes one by one, while the tone rewrites exchange HTML and may restructure. @frapell 
+
+
+
+### Frontend
+
+No significant changes.
+
+
+### Project
+
+No significant changes.
+
+
+
+
 ## 1.3.0 (2026-08-03)
 
 ### Backend
