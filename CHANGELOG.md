@@ -7,6 +7,30 @@
 -->
 
 <!-- towncrier release notes start -->
+## 1.3.2 (2026-08-07)
+
+### Backend
+
+
+#### Bug fixes:
+
+- Stop Mosaic's edit-mode dimming from fading out the Assistant button, and bring the "Help me write" bar
+  back on every rich-text tile each time it is selected, not just on the first one. @frapell 
+
+
+
+### Frontend
+
+No significant changes.
+
+
+### Project
+
+No significant changes.
+
+
+
+
 ## 1.3.1 (2026-08-05)
 
 ### Backend
