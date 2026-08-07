@@ -27,6 +27,15 @@
  * (`window.tinymce.editors` + the AddEditor/init events) rather than by
  * scanning the DOM, so this works regardless of the editor's markup.
  *
+ * In Mosaic the bar lives inside the tile's own control bar, which Mosaic
+ * rebuilds as the tile selection moves — silently taking our bar with it,
+ * without tearing the editor down (so TinyMCE fires no `remove`). The bar is
+ * therefore never assumed to still be there: `ensureBar` re-creates it whenever
+ * it has left the document. It is driven by the editor's own `focus` event and
+ * by Mosaic's tile selection, which is observed through the
+ * `mosaic-selected-tile` class — Mosaic emits no event of its own when the
+ * selection moves, so that class is the only signal there is.
+ *
  * Config (endpoint URL, operations, translated labels) is read from the
  * pattern's options — the viewlet renders it into `data-pat-aitools-help-me-write`.
  */
@@ -415,8 +424,20 @@ function setup(CONFIG) {
         }
     }
 
-    function attachBar(editor) {
-        if (!editor || editor.__aitoolsHmwAttached) {
+    /* The bar built for this editor, if it is still in the document.
+     *
+     * Mosaic rebuilds a tile's controls whenever the selection moves, which
+     * takes our bar down with them — but it does *not* tear the editor down, so
+     * TinyMCE fires no "remove" and a boolean "already attached" flag would
+     * stay true forever and the bar would never come back. Asking the node
+     * itself cannot go stale that way. */
+    function barFor(editor) {
+        const bar = editor.__aitoolsHmwBar;
+        return bar && bar.isConnected ? bar : null;
+    }
+
+    function ensureBar(editor) {
+        if (!editor || barFor(editor)) {
             return;
         }
         // Inline editors (Mosaic rich-text tiles) have no iframe container and
@@ -435,7 +456,6 @@ function setup(CONFIG) {
         if (!anchor || !anchor.parentNode) {
             return;
         }
-        editor.__aitoolsHmwAttached = true;
 
         const bar = document.createElement("div");
         bar.className = "aitools-hmw";
@@ -497,26 +517,89 @@ function setup(CONFIG) {
             anchor.parentNode.insertBefore(bar, anchor);
         }
 
-        // Drop our marker (and the bar) if the editor is torn down.
-        editor.on("remove", function () {
-            editor.__aitoolsHmwAttached = false;
-            if (bar.parentNode) {
-                bar.parentNode.removeChild(bar);
+        editor.__aitoolsHmwBar = bar;
+    }
+
+    function removeBar(editor) {
+        const bar = editor.__aitoolsHmwBar;
+        if (bar && bar.parentNode) {
+            bar.parentNode.removeChild(bar);
+        }
+        editor.__aitoolsHmwBar = null;
+    }
+
+    // Re-check every inline editor. ensureBar is a no-op when the bar is
+    // already in place, so an extra pass costs nothing; the delayed one is
+    // there because Mosaic finishes rebuilding a tile's controls a beat after
+    // it marks the tile selected.
+    let rescanQueued = false;
+
+    function rescanInlineEditors() {
+        if (rescanQueued) {
+            return;
+        }
+        rescanQueued = true;
+        const pass = function () {
+            const tinymce = window.tinymce;
+            (tinymce ? tinymce.editors || [] : []).forEach(function (editor) {
+                if (editor.inline) {
+                    ensureBar(editor);
+                }
+            });
+        };
+        window.requestAnimationFrame(function () {
+            rescanQueued = false;
+            pass();
+        });
+        window.setTimeout(pass, 150);
+    }
+
+    /* Watch Mosaic's tile selection.
+     *
+     * Mosaic emits no event when the selection moves — no jQuery custom event,
+     * no CustomEvent; the only thing it does is add and remove the
+     * `mosaic-selected-tile` class on the `.mosaic-tile`. So that class is what
+     * we watch. Filtering on `class` attributes keeps this cheap: they change
+     * when the selection moves, not on every keystroke the way the tile's
+     * child nodes do. */
+    function watchTileSelection() {
+        new MutationObserver(function (records) {
+            for (let i = 0; i < records.length; i += 1) {
+                const target = records[i].target;
+                if (target.classList && target.classList.contains("mosaic-tile")) {
+                    rescanInlineEditors();
+                    return;
+                }
             }
+        }).observe(document.body, {
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["class"],
         });
     }
 
     function onEditorReady(editor) {
-        if (!editor) {
+        if (!editor || editor.__aitoolsHmwHooked) {
             return;
         }
+        editor.__aitoolsHmwHooked = true;
+
         if (editor.initialized) {
-            attachBar(editor);
+            ensureBar(editor);
         } else {
             editor.on("init", function () {
-                attachBar(editor);
+                ensureBar(editor);
             });
         }
+        // Clicking into a tile focuses its inline editor, which is the moment
+        // Mosaic has finished putting the tile's controls back.
+        editor.on("focus", function () {
+            ensureBar(editor);
+        });
+        editor.on("remove", function () {
+            editor.__aitoolsHmwHooked = false;
+            removeBar(editor);
+        });
     }
 
     function hookTinyMCE(tinymce) {
@@ -535,6 +618,15 @@ function setup(CONFIG) {
                 }
             });
         });
+
+        if (CONFIG.mosaicInline) {
+            // Selecting a tile does not always focus its editor (clicking the
+            // tile's chrome selects it without entering the text), so watch the
+            // selection itself too. This is what makes the bar come back on the
+            // second and later clicks, and appear on every rich-text tile
+            // rather than only the one that happened to be first.
+            watchTileSelection();
+        }
     }
 
     function whenTinyMCE(cb) {

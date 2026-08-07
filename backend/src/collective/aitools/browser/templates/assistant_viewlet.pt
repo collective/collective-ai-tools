@@ -1,5 +1,9 @@
 <tal:as i18n:domain="collective.aitools">
+  <!-- display:contents keeps Mosaic's edit-mode dimming off the widget; it is
+       inline (not in the bundle's stylesheet) so it is already in effect when
+       Mosaic makes its one pass over the DOM. See AssistantViewlet. -->
   <div class="pat-aitools-assistant"
+       style="display: contents"
        tal:attributes="
          data-pat-aitools-assistant view/config_json;
        "
