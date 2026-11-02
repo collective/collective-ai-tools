@@ -31,7 +31,7 @@ dependencies = [
     "plone.api",
     "plone.restapi",
     "plone.volto",
-    "collective.aisettings>=1.1.0",
+    "collective.aisettings>=1.4.0",
 ]
 
 [project.optional-dependencies]
