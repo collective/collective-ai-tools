@@ -19,6 +19,9 @@ import "./assistant.scss";
 const STORE_KEY = "aitools-assistant-session";
 // How often to poll the async assistant task for its result.
 const POLL_INTERVAL_MS = 2000;
+// Delay before the one automatic retry of a turn interrupted by a server
+// restart (a 503 from the start endpoint, or a "retryable" task error).
+const RETRY_DELAY_MS = 2000;
 
 export default Base.extend({
     name: "aitools-assistant",
@@ -231,7 +234,8 @@ export default Base.extend({
         }
 
         // Poll the task status every POLL_INTERVAL_MS until done/error.
-        function poll(taskId, status, gen) {
+        // `retry` restarts the turn; it is null once the one retry is used.
+        function poll(taskId, status, gen, retry) {
             if (gen !== generation) {
                 return;
             }
@@ -244,11 +248,15 @@ export default Base.extend({
                     if (st === "done") {
                         const result = (data && data.result) || {};
                         finish(status, gen, result.reply || "", result.proposals || []);
+                    } else if (st === "error" && data.retryable && retry) {
+                        // The server restarted mid-turn. The turn is
+                        // read-only, so running it again is safe.
+                        window.setTimeout(retry, RETRY_DELAY_MS);
                     } else if (st === "error") {
                         showError(status, gen, (data && data.error) || L.error);
                     } else {
                         window.setTimeout(function () {
-                            poll(taskId, status, gen);
+                            poll(taskId, status, gen, retry);
                         }, POLL_INTERVAL_MS);
                     }
                 })
@@ -269,19 +277,37 @@ export default Base.extend({
             const status = addBubble("status", L.loading || "Thinking…");
             send.disabled = true;
             const gen = generation;
+            const history = messages();
 
-            post(CONFIG.endpoint, { messages: messages() })
-                .then(function (data) {
-                    const taskId = data && data.task_id;
-                    if (!taskId) {
-                        showError(status, gen, L.error);
-                        return;
-                    }
-                    poll(taskId, status, gen);
-                })
-                .catch(function (err) {
-                    showError(status, gen, (err && err.message) || L.error);
-                });
+            // Start the turn. On the first attempt a server restart (503, or
+            // a task interrupted with "retryable") triggers one silent retry.
+            function start(retried) {
+                if (gen !== generation) {
+                    return;
+                }
+                const retry = retried
+                    ? null
+                    : function () {
+                          start(true);
+                      };
+                post(CONFIG.endpoint, { messages: history })
+                    .then(function (data) {
+                        const taskId = data && data.task_id;
+                        if (!taskId) {
+                            showError(status, gen, L.error);
+                            return;
+                        }
+                        poll(taskId, status, gen, retry);
+                    })
+                    .catch(function (err) {
+                        if (err && err.status === 503 && retry) {
+                            window.setTimeout(retry, RETRY_DELAY_MS);
+                            return;
+                        }
+                        showError(status, gen, (err && err.message) || L.error);
+                    });
+            }
+            start(false);
         }
 
         // -- new chat --------------------------------------------------------

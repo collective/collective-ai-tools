@@ -60,7 +60,10 @@ function handleJSON(resp, fallbackError) {
                 const msg =
                     (data && data.error && (data.error.message || data.error)) ||
                     fallbackError;
-                throw new Error(msg);
+                const err = new Error(msg);
+                // Lets callers tell e.g. a 503 (retry elsewhere) from a 4xx.
+                err.status = resp.status;
+                throw err;
             }
             return data;
         });

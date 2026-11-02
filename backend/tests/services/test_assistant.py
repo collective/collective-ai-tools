@@ -3,6 +3,7 @@
 from collective.aisettings.interfaces import IAIService
 from collective.aisettings.services.tasks import complete_task
 from collective.aisettings.services.tasks import create_task
+from collective.aisettings.services import tasks
 from collective.aisettings.services.tasks import get_task
 from collective.aitools.services import async_runner
 from collective.aitools.services.assistant import Assistant
@@ -105,7 +106,9 @@ class TestAssistantEndpoint:
         assert "error" in result
 
     def test_disabled_is_forbidden(self, portal, fake_service):
-        result, status = _reply(portal, {"messages": [{"role": "user", "content": "hi"}]})
+        result, status = _reply(
+            portal, {"messages": [{"role": "user", "content": "hi"}]}
+        )
         assert status == 403
         assert "error" in result
 
@@ -115,11 +118,52 @@ class TestAssistantEndpoint:
         monkeypatch.setattr(async_runner, "Thread", FakeThread)
         api.portal.set_registry_record(ENABLED, True)
 
-        result, status = _reply(portal, {"messages": [{"role": "user", "content": "hi"}]})
+        result, status = _reply(
+            portal, {"messages": [{"role": "user", "content": "hi"}]}
+        )
         assert status == 202
         task_id = result["task_id"]
         assert result["status"] == "running"
         assert get_task(task_id) is not None
+
+    def test_not_cacheable(self, portal, fake_service):
+        request = _make_request({"messages": []})
+        service = Assistant()
+        service.context = portal
+        service.request = request
+        service.reply()
+        assert request.response.getHeader("Cache-Control") == "no-store"
+
+    def test_shutting_down_is_unavailable(self, portal, fake_service, monkeypatch):
+        def shutting_down(*args, **kwargs):
+            raise tasks.TaskStoreShuttingDown()
+
+        monkeypatch.setattr(async_runner, "create_task", shutting_down)
+        api.portal.set_registry_record(ENABLED, True)
+        request = _make_request({"messages": [{"role": "user", "content": "hi"}]})
+        service = Assistant()
+        service.context = portal
+        service.request = request
+        result = service.reply()
+        assert request.response.getStatus() == 503
+        assert request.response.getHeader("Retry-After") == "2"
+        assert result["error"]["type"] == "ServiceUnavailable"
+
+    def test_task_carries_owner_and_label(self, portal, fake_service, monkeypatch):
+        captured = {}
+
+        def capture(**kwargs):
+            captured.update(kwargs)
+            return "task-id"
+
+        monkeypatch.setattr(async_runner, "Thread", FakeThread)
+        monkeypatch.setattr(async_runner, "create_task", capture)
+        api.portal.set_registry_record(ENABLED, True)
+        _reply(portal, {"messages": [{"role": "user", "content": "hi"}]})
+        assert captured == {
+            "owner": api.user.get_current().getId(),
+            "label": "assistant",
+        }
 
 
 class TestAssistantRunner:
@@ -247,3 +291,18 @@ class TestAssistantStatus:
         assert result["task_id"] == task_id
         assert result["status"] == "done"
         assert result["result"]["reply"] == "done"
+        assert service.request.response.getHeader("Cache-Control") == "no-store"
+
+    def test_other_users_task_is_not_found(self, portal):
+        """With the shared store on, a task is only readable by its owner."""
+        from pymemcache.test.utils import MockMemcacheClient
+
+        tasks.reset(tasks.SharedTaskStore(MockMemcacheClient()))
+        try:
+            task_id = create_task(owner="someone-else")
+            service = _status_service(portal)
+            service.publishTraverse(service.request, task_id)
+            service.reply()
+            assert service.request.response.getStatus() == 404
+        finally:
+            tasks.reset()

@@ -15,6 +15,7 @@ user confirms. Not implemented yet — see the first editor slice.
 """
 
 from collective.aisettings.services.tasks import get_task
+from collective.aisettings.services.tasks import TaskStoreShuttingDown
 from collective.aitools import logger
 from collective.aitools.capabilities.propose_draft import validate_draft
 from collective.aitools.services.async_runner import start_assistant_task
@@ -132,6 +133,7 @@ class Assistant(Service):
     """
 
     def reply(self):
+        self.request.response.setHeader("Cache-Control", "no-store")
         data = json_body(self.request)
         messages = _sanitize_messages(data.get("messages"))
 
@@ -156,6 +158,15 @@ class Assistant(Service):
 
         try:
             task_id = start_assistant_task(self.context, self.request, messages)
+        except TaskStoreShuttingDown:
+            self.request.response.setStatus(503)
+            self.request.response.setHeader("Retry-After", "2")
+            return {
+                "error": {
+                    "type": "ServiceUnavailable",
+                    "message": "The server is restarting. Please try again.",
+                }
+            }
         except Exception as exc:
             logger.exception("assistant endpoint failed to start task")
             self.request.response.setStatus(500)
@@ -171,7 +182,10 @@ class AssistantStatus(Service):
 
     Returns ``{"task_id", "status": "running"}`` while the worker is busy,
     ``{"task_id", "status": "done", "result": {...}}`` on success, or
-    ``{"task_id", "status": "error", "error": "..."}`` on failure.
+    ``{"task_id", "status": "error", "error": "..."}`` on failure (plus
+    ``"retryable": true`` when a shutdown interrupted it). Only the user who
+    started the task can read it (when collective.aisettings' shared task
+    store is on), and the answer is never cacheable.
     """
 
     # Populated by publishTraverse with the path segments after the service
@@ -186,12 +200,13 @@ class AssistantStatus(Service):
         return self
 
     def reply(self):
+        self.request.response.setHeader("Cache-Control", "no-store")
         if not self.params:
             self.request.response.setStatus(400)
             return {"error": {"type": "BadRequest", "message": "task_id required"}}
 
         task_id = self.params[0]
-        task = get_task(task_id)
+        task = get_task(task_id, owner=api.user.get_current().getId())
         if task is None:
             self.request.response.setStatus(404)
             return {"error": {"type": "NotFound", "message": "task not found"}}

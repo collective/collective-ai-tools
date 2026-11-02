@@ -191,7 +191,9 @@ def start_assistant_task(context, request, messages) -> str:
     environ = _snapshot_environ(request)
     url_state = _snapshot_url_state(request)
 
-    task_id = create_task()
+    # Raises TaskStoreShuttingDown once the process is going away; the
+    # endpoint answers 503 so the client retries on another instance.
+    task_id = create_task(owner=user_id, label="assistant")
     Thread(
         target=_worker,
         args=(
