@@ -9,6 +9,16 @@
 
 <!-- towncrier release notes start -->
 
+## 1.5.0 (2026-11-03)
+
+
+### New features:
+
+- Every tool endpoint can run as a polled task (`"async": true`), as the
+  assistant already does, so a slow model call no longer hits proxy timeouts. The
+  widgets always ask for one, polling `@aitools-task-status`, and fall back to a
+  synchronous call when a poll lands on a process without the task. @frapell 
+
 ## 1.4.0 (2026-11-02)
 
 
