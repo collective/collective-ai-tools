@@ -40,6 +40,7 @@
  * pattern's options — the viewlet renders it into `data-pat-aitools-help-me-write`.
  */
 import Base from "@patternslib/patternslib/src/core/base";
+import { runTask } from "./lib/ui";
 import "./help-me-write.scss";
 
 const SPARKLES =
@@ -328,31 +329,13 @@ function setup(CONFIG) {
         setBusy(bar, true);
         setStatus(bar, "loading", L.loading || "Generating...");
 
-        fetch(CONFIG.endpoint, {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
+        runTask({
+            endpoint: CONFIG.endpoint,
+            statusEndpoint: CONFIG.statusEndpoint,
+            payload: payload,
+            fallbackError: L.error,
+            syncFallback: true,
         })
-            .then(function (resp) {
-                return resp
-                    .json()
-                    .catch(function () {
-                        return {};
-                    })
-                    .then(function (data) {
-                        if (!resp.ok) {
-                            const msg =
-                                (data && data.error && (data.error.message || data.error)) ||
-                                L.error;
-                            throw new Error(msg);
-                        }
-                        return data;
-                    });
-            })
             .then(function (data) {
                 let changed = 1;
                 if (op.mode === "draft") {
@@ -656,6 +639,7 @@ export default Base.extend({
     parser: "mockup",
     defaults: {
         endpoint: "",
+        statusEndpoint: "",
         operations: [],
         labels: {},
     },

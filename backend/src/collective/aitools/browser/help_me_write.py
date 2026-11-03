@@ -50,6 +50,9 @@ class HelpMeWriteViewlet(ViewletBase):
     def endpoint_url(self) -> str:
         return f"{self.context.absolute_url()}/@aitools-help-me-write"
 
+    def status_url(self) -> str:
+        return f"{self.context.absolute_url()}/@aitools-task-status"
+
     def _operations(self):
         return [
             {
@@ -66,6 +69,8 @@ class HelpMeWriteViewlet(ViewletBase):
         t = lambda msg: translate(msg, context=self.request)
         return json.dumps({
             "endpoint": self.endpoint_url(),
+            # Poll base for the async task; the pattern appends "/<task_id>".
+            "statusEndpoint": self.status_url(),
             "operations": self._operations(),
             # Mosaic rich-text tiles use inline TinyMCE editors; only wire the
             # bar into inline editors when Mosaic is present (see the pattern).

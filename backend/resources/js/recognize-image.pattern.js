@@ -19,6 +19,7 @@ import {
     setTextField,
     SPARKLES,
 } from "./lib/fields";
+import { runTask } from "./lib/ui";
 import "./recognize-image.scss";
 
 // The document scan + MutationObserver are global; only wire them up once even
@@ -120,31 +121,13 @@ function run(CONFIG, input, bar, form) {
 
     readFileAsDataURL(file)
         .then(function (dataUri) {
-            return fetch(CONFIG.endpoint, {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ image: dataUri }),
+            return runTask({
+                endpoint: CONFIG.endpoint,
+                statusEndpoint: CONFIG.statusEndpoint,
+                payload: { image: dataUri },
+                fallbackError: L.error,
+                syncFallback: true,
             });
-        })
-        .then(function (resp) {
-            return resp
-                .json()
-                .catch(function () {
-                    return {};
-                })
-                .then(function (data) {
-                    if (!resp.ok) {
-                        const msg =
-                            (data && data.error && (data.error.message || data.error)) ||
-                            L.error;
-                        throw new Error(msg);
-                    }
-                    return data;
-                });
         })
         .then(function (data) {
             const details = (data && data.result) || {};
@@ -266,6 +249,7 @@ export default Base.extend({
     parser: "mockup",
     defaults: {
         endpoint: "",
+        statusEndpoint: "",
         labels: {},
     },
     init: function () {

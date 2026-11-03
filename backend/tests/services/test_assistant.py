@@ -7,6 +7,7 @@ from collective.aisettings.services import tasks
 from collective.aisettings.services.tasks import get_task
 from collective.aitools.services import async_runner
 from collective.aitools.services.assistant import Assistant
+from collective.aitools.services.assistant import assistant_job
 from collective.aitools.services.assistant import AssistantStatus
 from io import BytesIO
 from plone import api
@@ -173,7 +174,11 @@ class TestAssistantRunner:
         request = _make_request({})
 
         async_runner._run_and_store(
-            portal, request, task_id, [{"role": "user", "content": "hi"}]
+            portal,
+            request,
+            task_id,
+            assistant_job,
+            {"messages": [{"role": "user", "content": "hi"}]},
         )
 
         task = get_task(task_id)
@@ -189,7 +194,11 @@ class TestAssistantRunner:
         request = _make_request({})
 
         async_runner._run_and_store(
-            portal, request, task_id, [{"role": "user", "content": "hi"}]
+            portal,
+            request,
+            task_id,
+            assistant_job,
+            {"messages": [{"role": "user", "content": "hi"}]},
         )
 
         task = get_task(task_id)

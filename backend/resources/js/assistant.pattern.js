@@ -12,16 +12,11 @@
  * was open, re-opens the widget where the user left off.
  */
 import Base from "@patternslib/patternslib/src/core/base";
-import { getJSON, postJSON } from "./lib/ui";
+import { postJSON, runTask } from "./lib/ui";
 import { renderMarkdown } from "./lib/markdown";
 import "./assistant.scss";
 
 const STORE_KEY = "aitools-assistant-session";
-// How often to poll the async assistant task for its result.
-const POLL_INTERVAL_MS = 2000;
-// Delay before the one automatic retry of a turn interrupted by a server
-// restart (a 503 from the start endpoint, or a "retryable" task error).
-const RETRY_DELAY_MS = 2000;
 
 export default Base.extend({
     name: "aitools-assistant",
@@ -233,38 +228,6 @@ export default Base.extend({
             send.disabled = false;
         }
 
-        // Poll the task status every POLL_INTERVAL_MS until done/error.
-        // `retry` restarts the turn; it is null once the one retry is used.
-        function poll(taskId, status, gen, retry) {
-            if (gen !== generation) {
-                return;
-            }
-            getJSON(CONFIG.statusEndpoint + "/" + encodeURIComponent(taskId), L.error)
-                .then(function (data) {
-                    if (gen !== generation) {
-                        return;
-                    }
-                    const st = data && data.status;
-                    if (st === "done") {
-                        const result = (data && data.result) || {};
-                        finish(status, gen, result.reply || "", result.proposals || []);
-                    } else if (st === "error" && data.retryable && retry) {
-                        // The server restarted mid-turn. The turn is
-                        // read-only, so running it again is safe.
-                        window.setTimeout(retry, RETRY_DELAY_MS);
-                    } else if (st === "error") {
-                        showError(status, gen, (data && data.error) || L.error);
-                    } else {
-                        window.setTimeout(function () {
-                            poll(taskId, status, gen, retry);
-                        }, POLL_INTERVAL_MS);
-                    }
-                })
-                .catch(function (err) {
-                    showError(status, gen, (err && err.message) || L.error);
-                });
-        }
-
         function ask() {
             const text = (input.value || "").trim();
             if (!text) {
@@ -279,35 +242,26 @@ export default Base.extend({
             const gen = generation;
             const history = messages();
 
-            // Start the turn. On the first attempt a server restart (503, or
-            // a task interrupted with "retryable") triggers one silent retry.
-            function start(retried) {
-                if (gen !== generation) {
-                    return;
-                }
-                const retry = retried
-                    ? null
-                    : function () {
-                          start(true);
-                      };
-                post(CONFIG.endpoint, { messages: history })
-                    .then(function (data) {
-                        const taskId = data && data.task_id;
-                        if (!taskId) {
-                            showError(status, gen, L.error);
-                            return;
-                        }
-                        poll(taskId, status, gen, retry);
-                    })
-                    .catch(function (err) {
-                        if (err && err.status === 503 && retry) {
-                            window.setTimeout(retry, RETRY_DELAY_MS);
-                            return;
-                        }
-                        showError(status, gen, (err && err.message) || L.error);
-                    });
-            }
-            start(false);
+            // The turn runs as a task; runTask polls it and re-runs it once,
+            // silently, when a server restart interrupts it. No synchronous
+            // fallback: the endpoint has no inline mode. A reset conversation
+            // stops the polling.
+            runTask({
+                endpoint: CONFIG.endpoint,
+                statusEndpoint: CONFIG.statusEndpoint,
+                payload: { messages: history },
+                fallbackError: L.error,
+                headers: CONFIG.token ? { "X-CSRF-TOKEN": CONFIG.token } : {},
+                isCurrent: function () {
+                    return gen === generation;
+                },
+            })
+                .then(function (result) {
+                    finish(status, gen, result.reply || "", result.proposals || []);
+                })
+                .catch(function (err) {
+                    showError(status, gen, (err && err.message) || L.error);
+                });
         }
 
         // -- new chat --------------------------------------------------------

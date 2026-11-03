@@ -6,7 +6,7 @@
  */
 import Base from "@patternslib/patternslib/src/core/base";
 import { findField, getBodyText } from "./fields";
-import { createBar, postJSON } from "./ui";
+import { createBar, runTask } from "./ui";
 
 // `applyResult(field, result)` writes the model result into `field` and returns
 // true when it actually filled it (i.e. the field was empty).
@@ -34,7 +34,13 @@ export default function makeContentToolPattern({ name, trigger, targetSuffix, ap
             }
             ui.setBusy(true);
             ui.setStatus("loading", L.loading || "Working...");
-            postJSON(CONFIG.endpoint, { text: text }, L.error)
+            runTask({
+                endpoint: CONFIG.endpoint,
+                statusEndpoint: CONFIG.statusEndpoint,
+                payload: { text: text },
+                fallbackError: L.error,
+                syncFallback: true,
+            })
                 .then(function (data) {
                     const filled = applyResult(field, data && data.result);
                     ui.setBusy(false);
@@ -60,6 +66,7 @@ export default function makeContentToolPattern({ name, trigger, targetSuffix, ap
         parser: "mockup",
         defaults: {
             endpoint: "",
+            statusEndpoint: "",
             labels: {},
         },
         init: function () {

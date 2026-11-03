@@ -47,12 +47,23 @@
       name="@aitools-assistant"
       />
 
-  <!-- Poll an in-flight assistant turn started by @aitools-assistant. for="*"
-       because the widget (and thus the poll) runs sitewide, including the
-       Plone root. -->
+  <!-- Poll a task started by any endpoint above (the assistant always, the
+       others with "async": true). for="*" because the widgets (and thus the
+       poll) run sitewide, including the Plone root. The start endpoints carry
+       the real permission check; a task is only readable by its owner. -->
   <plone:service
       method="GET"
-      factory=".assistant.AssistantStatus"
+      factory=".task_status.TaskStatus"
+      for="*"
+      permission="zope2.View"
+      name="@aitools-task-status"
+      />
+
+  <!-- Its name before every tool could run as a task; kept so a page
+       rendered before the upgrade keeps polling. -->
+  <plone:service
+      method="GET"
+      factory=".task_status.TaskStatus"
       for="*"
       permission="zope2.View"
       name="@aitools-assistant-status"

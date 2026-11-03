@@ -67,6 +67,48 @@ deliberately undecided — tools only expose `run`.
    model resolution, and a `run` test with the `fake_service` fixture pattern).
 7. Update this file.
 
+## Endpoints and async tasks (`services/`)
+
+Each tool the browser calls has its own `POST @aitools-<tool>` endpoint, a
+subclass of `ToolService` ([`services/base.py`](services/base.py)). A subclass
+sets `tool_name` and `disabled_message`, implements `validate(data)` (returns
+the job's kwargs, raises `BadInput` → 400) and points `job` at a module-level
+function `job(context, request, **kwargs)` returning the 200 body (raise
+`ToolFailed` → 502). Keep one endpoint per tool: its permission lives on its
+ZCML registration, and logs/traces tell tools apart by path.
+
+- **Inline or task.** Without `"async": true` the job runs in the request.
+  With it, `async_runner.start_task` runs the job on a daemon thread with a
+  full Plone environment (ZODB connection, site, the user's security, the
+  caller's virtual hosting) and the endpoint answers
+  `202 {"task_id", "status": "running"}`. The Assistant sets
+  `always_async = True`. **A task's `result` is exactly the inline body**, so
+  the code applying an answer never cares how it was obtained.
+- **Validation and the disabled check stay in the request** (400/403), so a
+  bad call never creates a task. `TaskStoreShuttingDown` → 503 + `Retry-After`.
+- **Polling**: `GET @aitools-task-status/<id>`
+  ([`services/task_status.py`](services/task_status.py)), also registered as
+  `@aitools-assistant-status` for pages rendered before 1.5.0. Owner-checked
+  and `no-store`. Task state lives in collective.aisettings' task store.
+- **Jobs are read-only**: the worker aborts its transaction. A job that wrote
+  would also break the client's silent retry, which re-runs the call.
+- **Client**: every pattern goes through `runTask` in
+  [`resources/js/lib/ui.js`](../../../resources/js/lib/ui.js). It always asks
+  for a task, polls every 2 s, re-runs the call once on a 503 or a
+  `retryable` task error, and — for the edit-form tools (`syncFallback`) —
+  repeats the call synchronously when a poll gets 404. That 404 means several
+  Zope processes without a shared task store; the status endpoint logs a
+  warning once per process when it happens. The Assistant has no fallback
+  (no inline mode, and a turn is too costly to run twice).
+
+To add an endpoint for a new tool: a `ToolService` subclass and its job in
+`services/<tool>.py`, a `plone:service` in
+[`services/configure.zcml`](services/configure.zcml) with the tool's
+permission, `statusEndpoint` in the viewlet's config, `runTask` in the
+pattern, and tests next to
+[`tests/services/test_async_tools.py`](../../../tests/services/test_async_tools.py)
+(add the tool to its `CASES`).
+
 ## The Assistant (agentic chat) + capabilities
 
 The `assistant` tool ([`tools/assistant.py`](tools/assistant.py)) is a chat

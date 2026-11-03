@@ -62,7 +62,7 @@ backend/src/collective/aitools/
 ├── tools/                 ← the AI tools (named IAITool utilities) — see src AGENTS.md
 ├── capabilities/          ← assistant capabilities (named IAIAssistantCapability utilities) — see src AGENTS.md
 ├── controlpanels/         ← "AI Tools" control panel (RegistryEditForm + restapi adapter)
-├── services/              ← plone.restapi services — @aitools-* endpoints (incl. @aitools-assistant)
+├── services/              ← plone.restapi services — @aitools-* endpoints (ToolService, async tasks, @aitools-task-status)
 ├── browser/               ← viewlets (Patternslib triggers) + static/ (committed webpack bundle output)
 ├── content/               ← (empty stub) dexterity content types
 ├── indexers/              ← (empty stub) portal_catalog indexers

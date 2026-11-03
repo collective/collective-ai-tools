@@ -3,10 +3,10 @@
 ``POST <context>/@aitools-assistant`` with body ``{"messages": [...]}`` (the
 OpenAI-style conversation history) starts the ``assistant`` turn on a background
 thread and returns ``202 {"task_id": "...", "status": "running"}``. The agent
-loop is slow (several LLM round-trips), so it runs asynchronously to avoid HTTP
-timeouts; the client polls ``GET <context>/@aitools-assistant-status/<task_id>``
-until the task is ``done`` (``result`` = ``{"reply", "steps", "proposals"}``) or
-``error``.
+loop is slow (several LLM round-trips), so it always runs asynchronously to
+avoid HTTP timeouts; the client polls ``GET <context>/@aitools-task-status/<task_id>``
+(see :mod:`~collective.aitools.services.task_status`) until the task is
+``done`` (``result`` = ``{"reply", "steps", "proposals"}``) or ``error``.
 
 ``POST <context>/@aitools-assistant-apply`` is the (stubbed) explicit,
 user-confirmed write endpoint: the assistant only ever *proposes* content
@@ -14,11 +14,12 @@ changes; the actual mutation happens here, behind the edit permission, when the
 user confirms. Not implemented yet — see the first editor slice.
 """
 
-from collective.aisettings.services.tasks import get_task
-from collective.aisettings.services.tasks import TaskStoreShuttingDown
 from collective.aitools import logger
 from collective.aitools.capabilities.propose_draft import validate_draft
-from collective.aitools.services.async_runner import start_assistant_task
+from collective.aitools.services.async_runner import ToolFailed
+from collective.aitools.services.base import BadInput
+from collective.aitools.services.base import ToolService
+from collective.aitools.services.task_status import TaskStatus
 from collective.aitools.tools import get_tool
 from plone import api
 from plone.app.textfield.interfaces import IRichText
@@ -28,8 +29,6 @@ from plone.restapi.deserializer import json_body
 from plone.restapi.services import Service
 from datetime import datetime
 from datetime import timedelta
-from zope.interface import implementer
-from zope.publisher.interfaces import IPublishTraverse
 from zope.schema import getFields
 
 
@@ -124,94 +123,46 @@ def _sanitize_messages(raw):
     return messages[-MAX_MESSAGES:]
 
 
-class Assistant(Service):
+def assistant_job(context, request, messages):
+    """Run one Assistant turn; the task's ``result``."""
+    tool = get_tool("assistant")
+    if tool is None or not tool.is_enabled():
+        raise ToolFailed("The 'Assistant' tool is not enabled.")
+    result = tool.run(context, messages=messages, request=request)
+    if not result or not result.get("reply"):
+        raise ToolFailed(
+            "No response from the AI service. Check that a "
+            "tool-calling-capable model is configured in AI Settings."
+        )
+    return {
+        "reply": result["reply"],
+        "steps": result.get("steps", []),
+        "proposals": result.get("proposals", []),
+    }
+
+
+class Assistant(ToolService):
     """``POST @aitools-assistant`` — start an assistant turn asynchronously.
 
     Validates the request, enqueues the (slow, multi-step) agent loop on a
     background thread, and returns ``202`` with a task id the client polls via
-    :class:`AssistantStatus`.
+    :class:`~collective.aitools.services.task_status.TaskStatus`.
     """
 
-    def reply(self):
-        self.request.response.setHeader("Cache-Control", "no-store")
-        data = json_body(self.request)
+    tool_name = "assistant"
+    disabled_message = "The 'Assistant' tool is not enabled."
+    always_async = True
+    job = staticmethod(assistant_job)
+
+    def validate(self, data):
         messages = _sanitize_messages(data.get("messages"))
-
         if not messages:
-            self.request.response.setStatus(400)
-            return {
-                "error": {
-                    "type": "BadRequest",
-                    "message": "messages is required (a non-empty conversation).",
-                }
-            }
-
-        tool = get_tool("assistant")
-        if tool is None or not tool.is_enabled():
-            self.request.response.setStatus(403)
-            return {
-                "error": {
-                    "type": "Forbidden",
-                    "message": "The 'Assistant' tool is not enabled.",
-                }
-            }
-
-        try:
-            task_id = start_assistant_task(self.context, self.request, messages)
-        except TaskStoreShuttingDown:
-            self.request.response.setStatus(503)
-            self.request.response.setHeader("Retry-After", "2")
-            return {
-                "error": {
-                    "type": "ServiceUnavailable",
-                    "message": "The server is restarting. Please try again.",
-                }
-            }
-        except Exception as exc:
-            logger.exception("assistant endpoint failed to start task")
-            self.request.response.setStatus(500)
-            return {"error": {"type": "InternalServerError", "message": str(exc)}}
-
-        self.request.response.setStatus(202)
-        return {"task_id": task_id, "status": "running"}
+            raise BadInput("messages is required (a non-empty conversation).")
+        return {"messages": messages}
 
 
-@implementer(IPublishTraverse)
-class AssistantStatus(Service):
-    """``GET @aitools-assistant-status/<task_id>`` — poll an assistant turn.
-
-    Returns ``{"task_id", "status": "running"}`` while the worker is busy,
-    ``{"task_id", "status": "done", "result": {...}}`` on success, or
-    ``{"task_id", "status": "error", "error": "..."}`` on failure (plus
-    ``"retryable": true`` when a shutdown interrupted it). Only the user who
-    started the task can read it (when collective.aisettings' shared task
-    store is on), and the answer is never cacheable.
-    """
-
-    # Populated by publishTraverse with the path segments after the service
-    # name (the task id). Class-level default so no custom __init__ is needed
-    # (plone.rest sets context/request on the instance itself).
-    params: list[str] = None
-
-    def publishTraverse(self, request, name):
-        if self.params is None:
-            self.params = []
-        self.params.append(name)
-        return self
-
-    def reply(self):
-        self.request.response.setHeader("Cache-Control", "no-store")
-        if not self.params:
-            self.request.response.setStatus(400)
-            return {"error": {"type": "BadRequest", "message": "task_id required"}}
-
-        task_id = self.params[0]
-        task = get_task(task_id, owner=api.user.get_current().getId())
-        if task is None:
-            self.request.response.setStatus(404)
-            return {"error": {"type": "NotFound", "message": "task not found"}}
-
-        return {"task_id": task_id, **task}
+#: The status endpoint's class before every tool could run as a task.
+AssistantStatus = TaskStatus
 
 
 class AssistantApply(Service):

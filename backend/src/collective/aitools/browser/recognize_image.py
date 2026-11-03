@@ -43,10 +43,15 @@ class RecognizeImageViewlet(ViewletBase):
     def endpoint_url(self) -> str:
         return f"{self.context.absolute_url()}/@aitools-recognize-image"
 
+    def status_url(self) -> str:
+        return f"{self.context.absolute_url()}/@aitools-task-status"
+
     def config_json(self) -> str:
         t = lambda msg: translate(msg, context=self.request)
         config = {
             "endpoint": self.endpoint_url(),
+            # Poll base for the async task; the pattern appends "/<task_id>".
+            "statusEndpoint": self.status_url(),
             "labels": {
                 "button": t(_("Get image details")),
                 "loading": t(_("Analyzing image...")),

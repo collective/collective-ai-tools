@@ -5,10 +5,14 @@ The viewlets emit a JSON config the Classic-UI bundle reads. Mosaic
 config must only appear when Mosaic is importable.
 """
 
+from collective.aitools.browser.assistant import AssistantViewlet
 from collective.aitools.browser.help_me_write import HelpMeWriteViewlet
 from collective.aitools.browser.recognize_image import RecognizeImageViewlet
+from collective.aitools.browser.suggest_tags import SuggestTagsViewlet
+from collective.aitools.browser.summarize import SummarizeViewlet
 
 import json
+import pytest
 
 
 def _config(viewlet_class, portal, http_request):
@@ -50,3 +54,25 @@ class TestRecognizeImageConfig:
         # Fields the pattern fills on an image tile's own form.
         assert "caption" in mosaic["fields"]
         assert "title" in mosaic["fields"]
+
+
+class TestStatusEndpoint:
+    """Every tool polls the same status endpoint for its async task."""
+
+    @pytest.mark.parametrize(
+        "viewlet_class",
+        [
+            AssistantViewlet,
+            HelpMeWriteViewlet,
+            RecognizeImageViewlet,
+            SuggestTagsViewlet,
+            SummarizeViewlet,
+        ],
+    )
+    def test_config_carries_the_status_endpoint(
+        self, portal, http_request, viewlet_class
+    ):
+        config = _config(viewlet_class, portal, http_request)
+        assert config["statusEndpoint"] == (
+            f"{portal.absolute_url()}/@aitools-task-status"
+        )

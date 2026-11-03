@@ -38,10 +38,15 @@ class SuggestTagsViewlet(ViewletBase):
     def endpoint_url(self) -> str:
         return f"{self.context.absolute_url()}/@aitools-suggest-tags"
 
+    def status_url(self) -> str:
+        return f"{self.context.absolute_url()}/@aitools-task-status"
+
     def config_json(self) -> str:
         t = lambda msg: translate(msg, context=self.request)
         return json.dumps({
             "endpoint": self.endpoint_url(),
+            # Poll base for the async task; the pattern appends "/<task_id>".
+            "statusEndpoint": self.status_url(),
             "labels": {
                 "button": t(_("Suggest tags")),
                 "loading": t(_("Suggesting tags...")),

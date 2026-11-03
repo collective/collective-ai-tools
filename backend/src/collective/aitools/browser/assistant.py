@@ -42,7 +42,7 @@ class AssistantViewlet(ViewletBase):
         return f"{self.context.absolute_url()}/@aitools-assistant-apply"
 
     def status_url(self) -> str:
-        return f"{self.context.absolute_url()}/@aitools-assistant-status"
+        return f"{self.context.absolute_url()}/@aitools-task-status"
 
     def config_json(self) -> str:
         t = lambda msg: translate(msg, context=self.request)

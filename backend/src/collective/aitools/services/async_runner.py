@@ -1,22 +1,25 @@
-"""Run the agentic Assistant on a background thread.
+"""Run a tool's model call on a background thread.
 
-The Assistant's turn is slow: it makes several LLM tool-calling round-trips, so
-running it inside the request thread risks HTTP timeouts and ties up a ZServer
-worker. Instead the endpoint enqueues the turn here, gets a task id back, and the
-client polls for the result.
+A model call can outlast the proxies in front of Zope (Varnish answers 503
+after its first-byte timeout while Zope keeps working) and ties up a worker
+thread for its whole length. So an endpoint can hand the call to
+:func:`start_task`, answer ``202`` with a task id at once, and let the client
+poll for the result. The Assistant always does; the edit-form tools do when the
+request asks for it (see :class:`~collective.aitools.services.base.ToolService`).
 
 Unlike ``collective.aisettings``'s async ``@ai`` endpoint (which is deliberately
-tool-less), the Assistant loop runs *capabilities* that need Plone: catalog
-searches, object wake-ups, ``getSecurityManager()`` permission checks, the local
-registry, and ``brain.getURL()`` links. A bare worker thread has none of that,
-so :func:`_worker` bootstraps a full environment — its own ZODB connection, the
+tool-less), the jobs run here need Plone: model resolution reads the registry,
+the model's permission gate checks the current user, ``suggest_tags`` reads the
+catalog, and the Assistant's capabilities search, wake objects and build
+``brain.getURL()`` links. A bare worker thread has none of that, so
+:func:`_worker` bootstraps a full environment — its own ZODB connection, the
 active site, the current user's security context, and a request rebuilt from the
 originating request's environ *plus* its virtual-hosting state (see
 :func:`_snapshot_url_state`), so generated URLs match what the user sees.
 
-Task state is kept in ``collective.aisettings``'s in-memory task registry, which
-already gives us the exact ``running`` / ``done`` / ``error`` contract (and
-pruning) the client polls against.
+Task state is kept in ``collective.aisettings``'s task store (in-process, or
+memcached when ``COLLECTIVE_AISETTINGS_TASK_STORE`` is set), which gives us the
+``running`` / ``done`` / ``error`` contract the client polls against.
 """
 
 from AccessControl.SecurityManagement import newSecurityManager
@@ -25,7 +28,6 @@ from collective.aisettings.services.tasks import complete_task
 from collective.aisettings.services.tasks import create_task
 from collective.aisettings.services.tasks import fail_task
 from collective.aitools import logger
-from collective.aitools.tools import get_tool
 from io import BytesIO
 from plone import api
 from threading import Thread
@@ -53,9 +55,11 @@ _ENVIRON_KEYS = (
 )
 
 
-def _no_reply(result) -> bool:
-    """True when the tool produced nothing usable (disabled / no model)."""
-    return not result or not result.get("reply")
+class ToolFailed(Exception):
+    """The model produced nothing usable; the message says what to check.
+
+    Answered 502 when the job runs inline, stored as the task's error when it
+    runs here."""
 
 
 def _snapshot_environ(request) -> dict:
@@ -113,42 +117,26 @@ def _resolve_user(app, portal, user_id):
     return None
 
 
-def _run_and_store(context, request, task_id, messages):
-    """Run the Assistant tool and record the outcome on ``task_id``.
+def _run_and_store(context, request, task_id, job, kwargs):
+    """Run ``job`` and record its outcome on ``task_id``.
 
     Assumes the caller has already established the site and security context.
-    Kept separate from :func:`_worker` so the agent logic can be tested without
-    spinning up a thread / second ZODB connection.
+    Kept separate from :func:`_worker` so jobs can be tested without spinning
+    up a thread / second ZODB connection.
     """
     try:
-        tool = get_tool("assistant")
-        if tool is None or not tool.is_enabled():
-            fail_task(task_id, "The 'Assistant' tool is not enabled.")
-            return
-        result = tool.run(context, messages=messages, request=request)
-        if _no_reply(result):
-            fail_task(
-                task_id,
-                (
-                    "No response from the AI service. Check that a "
-                    "tool-calling-capable model is configured in AI Settings."
-                ),
-            )
-            return
-        complete_task(task_id, {
-            "reply": result["reply"],
-            "steps": result.get("steps", []),
-            "proposals": result.get("proposals", []),
-        })
+        complete_task(task_id, job(context, request, **kwargs))
+    except ToolFailed as exc:
+        fail_task(task_id, str(exc))
     except Exception as exc:
-        logger.exception("assistant task %s failed", task_id)
+        logger.exception("aitools task %s failed", task_id)
         fail_task(task_id, str(exc))
 
 
 def _worker(
-    db, environ, url_state, context_path, portal_path, user_id, task_id, messages
+    db, environ, url_state, context_path, portal_path, user_id, task_id, job, kwargs
 ):
-    """Background body: bootstrap Plone, run the Assistant, store the outcome."""
+    """Background body: bootstrap Plone, run the job, store the outcome."""
     conn = db.open()
     try:
         request = HTTPRequest(BytesIO(b""), dict(environ), HTTPResponse())
@@ -164,25 +152,28 @@ def _worker(
             return
         newSecurityManager(request, user)
 
-        _run_and_store(context, request, task_id, messages)
+        _run_and_store(context, request, task_id, job, kwargs)
     except Exception as exc:
-        logger.exception("assistant task %s failed to bootstrap", task_id)
+        logger.exception("aitools task %s failed to bootstrap", task_id)
         fail_task(task_id, str(exc))
     finally:
-        # The loop is read-only (writes happen only in the confirmed apply
-        # endpoint); abort so nothing lingers and no conflict can occur.
+        # Every job is read-only (the assistant's writes happen only in the
+        # confirmed apply endpoint); abort so nothing lingers and no conflict
+        # can occur.
         transaction.abort()
         noSecurityManager()
         setSite(None)
         conn.close()
 
 
-def start_assistant_task(context, request, messages) -> str:
-    """Enqueue an Assistant turn on a daemon thread; return its task id.
+def start_task(context, request, label, job, **kwargs) -> str:
+    """Run ``job(context, request, **kwargs)`` on a daemon thread.
 
-    Captures everything the worker needs while we still hold a live connection
-    and request (the ZODB handle, physical paths, the current user id, and both
-    halves of the request snapshot), then hands off to :func:`_worker`.
+    Returns the task id the client polls. Captures everything the worker needs
+    while we still hold a live connection and request (the ZODB handle,
+    physical paths, the current user id, and both halves of the request
+    snapshot), then hands off to :func:`_worker`. ``label`` names the task in
+    collective.aisettings' logs and lost-task events.
     """
     db = context._p_jar.db()
     context_path = context.getPhysicalPath()
@@ -193,7 +184,7 @@ def start_assistant_task(context, request, messages) -> str:
 
     # Raises TaskStoreShuttingDown once the process is going away; the
     # endpoint answers 503 so the client retries on another instance.
-    task_id = create_task(owner=user_id, label="assistant")
+    task_id = create_task(owner=user_id, label=label)
     Thread(
         target=_worker,
         args=(
@@ -204,9 +195,17 @@ def start_assistant_task(context, request, messages) -> str:
             portal_path,
             user_id,
             task_id,
-            messages,
+            job,
+            kwargs,
         ),
         daemon=True,
-        name=f"aitools-assistant-{task_id[:8]}",
+        name=f"aitools-{label}-{task_id[:8]}",
     ).start()
     return task_id
+
+
+def start_assistant_task(context, request, messages) -> str:
+    """Deprecated: ``start_task(..., "assistant", assistant_job, ...)``."""
+    from collective.aitools.services.assistant import assistant_job
+
+    return start_task(context, request, "assistant", assistant_job, messages=messages)
